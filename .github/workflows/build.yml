@@ -1,0 +1,41 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - prod  
+
+jobs:
+  build:
+    name: Build Pong Client and Server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup Rust
+        uses: actions/setup-rust@v1
+        with:
+          toolchain: stable
+
+      - name: Build Pong Client
+        run: |
+          cd pong_client  # Replace with your actual client folder name
+          cargo build --release --target=x86_64-pc-windows-gnu
+
+      - name: Build Pong Server
+        run: |
+          cd pong_server  # Replace with your actual server folder name
+          cargo build --release
+
+      - name: Upload Client Release Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: client-release
+          path: pong_client/target/x86_64-pc-windows-gnu/release/pong_client.exe
+
+      - name: Upload Server Release Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: server-release
+          path: pong_server/target/release/pong_server
