@@ -1,0 +1,58 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - prod  
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Setup Rust for Windows
+        run: rustup target add x86_64-pc-windows-gnu
+
+      - name: Install mingw-w64
+        run: sudo apt-get update && sudo apt-get install -y mingw-w64
+
+      - name: Build Client
+        run: |
+          cd pong-client  # Replace with your actual client folder name
+          cargo build --release --target=x86_64-pc-windows-gnu
+
+      - name: Build Server
+        run: |
+          cd pong-server  # Replace with your actual server folder name
+          cargo build --release
+
+      - name: List Built Artifacts
+        run: |
+          echo "Listing built artifacts"
+          ls -R ./pong-client
+          ls -R ./pong-server
+
+      - name: Create Client Release
+        id: create-client-release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./pong-client/target/x86_64-pc-windows-gnu/release/pong-client.exe
+          tag_name: v${{ github.run_number }}
+          title: Release Pong Client v${{ github.run_number }}
+
+      - name: Create Server Release
+        id: create-server-release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./pong-server/target/release/pong-server
+          tag_name: v${{ github.run_number }}
+          title: Release Pong Server v${{ github.run_number }}
