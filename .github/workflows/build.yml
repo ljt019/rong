@@ -7,34 +7,34 @@ on:
 
 jobs:
   build:
-    name: Build Pong Client and Server
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
       - name: Setup Rust
-        uses: actions/setup-rust@v1
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
 
-      - name: Build Pong Client
+      - name: Build Client
         run: |
           cd pong_client  # Replace with your actual client folder name
           cargo build --release --target=x86_64-pc-windows-gnu
 
-      - name: Build Pong Server
+      - name: Build Server
         run: |
           cd pong_server  # Replace with your actual server folder name
           cargo build --release
 
-      - name: Upload Client Release Artifact
+      - name: Upload Client Release
         uses: actions/upload-artifact@v2
         with:
           name: client-release
           path: pong_client/target/x86_64-pc-windows-gnu/release/pong_client.exe
 
-      - name: Upload Server Release Artifact
+      - name: Upload Server Release
         uses: actions/upload-artifact@v2
         with:
           name: server-release
