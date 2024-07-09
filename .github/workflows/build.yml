@@ -38,10 +38,10 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: client-release
-          path: pong-client/target/x86_64-pc-windows-gnu/release/build/pong_client.exe
+          path: pong-client/target/x86_64-pc-windows-gnu/release/pong_client.exe
 
       - name: Upload Server Release
         uses: actions/upload-artifact@v2
         with:
           name: server-release
-          path: pong-server/target/release/build/pong_server
+          path: pong-server/target/release/pong_server
