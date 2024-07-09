@@ -31,7 +31,7 @@ jobs:
 
       - name: Build Server
         run: |
-          cd pong_server  # Replace with your actual server folder name
+          cd pong-server  # Replace with your actual server folder name
           cargo build --release
 
       - name: Upload Client Release
@@ -44,4 +44,4 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: server-release
-          path: pong_server/target/release/pong_server
+          path: pong-server/target/release/pong_server
