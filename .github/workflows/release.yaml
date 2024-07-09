@@ -31,11 +31,21 @@ jobs:
           name: server-release
           path: ./pong-server
 
+      - name: List Downloaded Client Artifact Directory
+        run: |
+          echo "Listing contents of downloaded client artifact directory"
+          ls -R ./pong-client
+
+      - name: List Downloaded Server Artifact Directory
+        run: |
+          echo "Listing contents of downloaded server artifact directory"
+          ls -R ./pong-server
+
       - name: Create Client Release
         id: create-client-release
         uses: softprops/action-gh-release@v1
         with:
-          files: ./client/pong-client.exe
+          files: ./pong-client/pong_client.exe
           tag_name: v${{ github.run_number }}
           title: Release Pong Client v${{ github.run_number }}
 
@@ -43,6 +53,6 @@ jobs:
         id: create-server-release
         uses: softprops/action-gh-release@v1
         with:
-          files: ./server/pong-server
+          files: ./pong-server/pong_server
           tag_name: v${{ github.run_number }}
           title: Release Pong Server v${{ github.run_number }}
