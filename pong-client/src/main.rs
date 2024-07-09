@@ -4,6 +4,8 @@ use std::net::UdpSocket;
 const PLAYER_WIDTH: f32 = 100.0;
 const PLAYER_HEIGHT: f32 = 10.0;
 
+const SERVER_ADDR: &str = "192.168.1.13:2096"
+
 struct Player {
     id: u8,
     x: f32,
@@ -69,7 +71,7 @@ async fn main() {
 
     println!("Attempting to send connect message to server...");
     let connect_message = "CONNECT";
-    match socket.send_to(connect_message.as_bytes(), "192.168.1.75:2906") {
+    match socket.send_to(connect_message.as_bytes(), SERVER_ADDR) {
         Ok(_) => println!("Connect message sent successfully"),
         Err(e) => println!("Failed to send connect message: {}", e),
     }
@@ -166,7 +168,7 @@ async fn main() {
                 if last_x != player.x || last_y != player.y {
                     let message = format!("{} POS {} {}", player.id, player.x, player.y);
                     socket
-                        .send_to(message.as_bytes(), "192.168.1.75:2906")
+                        .send_to(message.as_bytes(), SERVER_ADDR)
                         .expect("Could not send message");
                 }
 
