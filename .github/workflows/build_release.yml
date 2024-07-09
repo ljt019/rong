@@ -48,6 +48,7 @@ jobs:
           files: ./pong-client/target/x86_64-pc-windows-gnu/release/pong-client.exe
           tag_name: v${{ github.run_number }}
           name: Release Pong Client v${{ github.run_number }}
+          token: ${{ secrets.WORKFLOW_SECRET }}  # Reference your secret here
 
       - name: Create Server Release
         id: create-server-release
@@ -56,3 +57,4 @@ jobs:
           files: ./pong-server/target/release/pong-server
           tag_name: v${{ github.run_number }}
           name: Release Pong Server v${{ github.run_number }}
+          token: ${{ secrets.WORKFLOW_SECRETw }}  # Reference your secret here
