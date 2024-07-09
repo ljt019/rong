@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - prod  
+
+jobs:
+  release:
+    name: Release Pong Client and Server
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download Client Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: client-release
+
+      - name: Create Client Release
+        id: create-client-release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ github.workspace }}/client-release/pong_client.exe
+          tag_name: v${{ github.run_number }}
+          title: Release Pong Client v${{ github.run_number }}
+
+      - name: Download Server Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: server-release
+
+      - name: Create Server Release
+        id: create-server-release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ github.workspace }}/server-release/pong_server
+          tag_name: v${{ github.run_number }}
+          title: Release Pong Server v${{ github.run_number }}
