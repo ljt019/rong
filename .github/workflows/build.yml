@@ -21,6 +21,9 @@ jobs:
       - name: Setup Rust for Windows
         run: rustup target add x86_64-pc-windows-gnu
 
+      - name: Install mingw-w64
+        run: sudo apt-get update && sudo apt-get install -y mingw-w64
+
       - name: Build Client
         run: |
           cd pong-client  # Replace with your actual client folder name
