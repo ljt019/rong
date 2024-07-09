@@ -8,31 +8,36 @@ on:
 
 jobs:
   release:
-    name: Release 
     runs-on: ubuntu-latest
+
     steps:
-      - name: Download Client
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Download Client Release
         uses: actions/download-artifact@v2
         with:
           name: client-release
+          path: ./client
+
+      - name: Download Server Release
+        uses: actions/download-artifact@v2
+        with:
+          name: server-release
+          path: ./server
 
       - name: Create Client Release
         id: create-client-release
         uses: softprops/action-gh-release@v1
         with:
-          files: client-release/pong_client.exe
+          files: ./client/pong_client.exe
           tag_name: v${{ github.run_number }}
           title: Release Pong Client v${{ github.run_number }}
-
-      - name: Download Server
-        uses: actions/download-artifact@v2
-        with:
-          name: server-release
 
       - name: Create Server Release
         id: create-server-release
         uses: softprops/action-gh-release@v1
         with:
-          files: server-release/pong_server
+          files: ./server/pong_server
           tag_name: v${{ github.run_number }}
           title: Release Pong Server v${{ github.run_number }}
