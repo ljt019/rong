@@ -13,19 +13,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Setup Rust
+      - name: Setup Toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
 
+      - name: Setup Rust for Windows
+        run: rustup target add x86_64-pc-windows-gnu
+
       - name: Build Client
         run: |
-          cd pong-client  # Replace with your actual client folder name
+          cd pong_client  # Replace with your actual client folder name
           cargo build --release --target=x86_64-pc-windows-gnu
 
       - name: Build Server
         run: |
-          cd pong-server  # Replace with your actual server folder name
+          cd pong_server  # Replace with your actual server folder name
           cargo build --release
 
       - name: Upload Client Release
