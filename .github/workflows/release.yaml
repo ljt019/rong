@@ -23,19 +23,19 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: client-release
-          path: ./client
+          path: ./pong-client
 
       - name: Download Server Release
         uses: actions/download-artifact@v2
         with:
           name: server-release
-          path: ./server
+          path: ./pong-server
 
       - name: Create Client Release
         id: create-client-release
         uses: softprops/action-gh-release@v1
         with:
-          files: ./client/pong_client.exe
+          files: ./client/pong-client.exe
           tag_name: v${{ github.run_number }}
           title: Release Pong Client v${{ github.run_number }}
 
@@ -43,6 +43,6 @@ jobs:
         id: create-server-release
         uses: softprops/action-gh-release@v1
         with:
-          files: ./server/pong_server
+          files: ./server/pong-server
           tag_name: v${{ github.run_number }}
           title: Release Pong Server v${{ github.run_number }}
