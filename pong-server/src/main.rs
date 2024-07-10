@@ -1,3 +1,7 @@
+mod ball;
+mod game;
+mod player;
+
 use std::collections::HashMap;
 use std::net::{SocketAddr, UdpSocket};
 

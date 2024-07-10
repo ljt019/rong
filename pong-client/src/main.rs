@@ -6,7 +6,7 @@ use std::net::UdpSocket;
 const PLAYER_WIDTH: f32 = 100.0;
 const PLAYER_HEIGHT: f32 = 10.0;
 
-const SERVER_ADDR: &str = "192.168.1.13:2096";
+const SERVER_ADDR: &str = "10.0.0.252:2906";
 
 struct Player {
     id: u8,
