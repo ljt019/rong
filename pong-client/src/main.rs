@@ -1,12 +1,12 @@
-#![windows_subsystem = "windows"]
-
 use macroquad::prelude::*;
 use std::net::UdpSocket;
 
+const SERVER_ADDR: &str = "192.168.1.75:2906";
+
 const PLAYER_WIDTH: f32 = 100.0;
 const PLAYER_HEIGHT: f32 = 10.0;
-
-const SERVER_ADDR: &str = "10.0.0.252:2906";
+const SCREEN_WIDTH: f32 = 800.0;
+const SCREEN_HEIGHT: f32 = 600.0;
 
 struct Player {
     id: u8,
@@ -15,28 +15,31 @@ struct Player {
 }
 
 impl Player {
-    fn new(id: u8, x: f32, y: f32) -> Self {
-        Player { id, x, y }
+    fn new(id: u8) -> Self {
+        Player { id, x: 0.0, y: 0.0 }
+    }
+
+    fn set_position(&mut self, x: f32, y: f32) {
+        self.x = x;
+        self.y = y;
     }
 
     fn draw(&self) {
-        draw_rectangle(self.x, self.y, PLAYER_WIDTH, PLAYER_HEIGHT, GREEN);
+        draw_rectangle(
+            self.x * SCREEN_WIDTH,
+            self.y * SCREEN_HEIGHT,
+            PLAYER_WIDTH,
+            PLAYER_HEIGHT,
+            GREEN,
+        );
     }
 
     fn move_left(&mut self) {
-        self.x = (self.x - 1.0).max(0.0);
+        self.x = (self.x - 0.01).max(0.0);
     }
 
     fn move_right(&mut self) {
-        self.x = (self.x + 1.0).min(screen_width() - PLAYER_WIDTH);
-    }
-
-    fn move_up(&mut self) {
-        self.y = (self.y - 1.0).max(0.0);
-    }
-
-    fn move_down(&mut self) {
-        self.y = (self.y + 1.0).min(screen_height() - PLAYER_HEIGHT);
+        self.x = (self.x + 0.01).min(1.0 - PLAYER_WIDTH / SCREEN_WIDTH);
     }
 }
 
@@ -46,19 +49,49 @@ struct Opponent {
 }
 
 impl Opponent {
-    fn new(x: f32, y: f32) -> Self {
-        Opponent { x, y }
+    fn new() -> Self {
+        Opponent { x: 0.0, y: 0.0 }
+    }
+
+    fn set_position(&mut self, x: f32, y: f32) {
+        self.x = x;
+        self.y = y;
     }
 
     fn draw(&self) {
-        // x and y need to be on opposite side of screen from player (i.e mirrored vertically)
-        draw_rectangle(self.x, self.y, PLAYER_WIDTH, PLAYER_HEIGHT, RED);
+        draw_rectangle(
+            self.x * SCREEN_WIDTH,
+            self.y * SCREEN_HEIGHT,
+            PLAYER_WIDTH,
+            PLAYER_HEIGHT,
+            RED,
+        );
+    }
+}
+
+struct Ball {
+    x: f32,
+    y: f32,
+}
+
+impl Ball {
+    fn new() -> Self {
+        Ball { x: 0.5, y: 0.5 }
     }
 
-    fn update_position(&mut self, x: f32, y: f32) {
-        self.x = screen_width() - x - PLAYER_WIDTH;
-        self.y = screen_height() - y - PLAYER_HEIGHT;
+    fn set_position(&mut self, x: f32, y: f32) {
+        self.x = x;
+        self.y = y;
     }
+
+    fn draw(&self) {
+        draw_circle(self.x * SCREEN_WIDTH, self.y * SCREEN_HEIGHT, 10.0, WHITE);
+    }
+}
+
+enum GameState {
+    WaitingForPlayers,
+    GameStarted,
 }
 
 #[macroquad::main("Pong Client")]
@@ -68,129 +101,105 @@ async fn main() {
         .set_nonblocking(true)
         .expect("Could not set UDP socket to non-blocking");
 
-    let send_port = socket.local_addr().unwrap().port();
-    println!("Client bound to port: {}", send_port);
-
-    println!("Attempting to send connect message to server...");
-    let connect_message = "CONNECT";
-    match socket.send_to(connect_message.as_bytes(), SERVER_ADDR) {
-        Ok(_) => println!("Connect message sent successfully"),
-        Err(e) => println!("Failed to send connect message: {}", e),
-    }
-
-    let screen_width = screen_width();
-    let screen_height = screen_height();
-
-    let mut player = Player::new(
-        0,
-        screen_width / 2.0 - PLAYER_WIDTH / 2.0,
-        screen_height - PLAYER_HEIGHT - 10.0,
+    println!(
+        "Client bound to port: {}",
+        socket.local_addr().unwrap().port()
     );
 
-    // Opponent starts at the top of the screen
-    let mut opponent = Opponent::new(screen_width / 2.0 - PLAYER_WIDTH / 2.0, 10.0);
+    socket
+        .send_to(b"CONNECT", SERVER_ADDR)
+        .expect("Failed to send connect message");
 
-    let mut game_state = GameState::WaitingForPlayer2;
-
-    let mut last_x = player.x;
-    let mut last_y = player.y;
+    let mut player = Player::new(0);
+    let mut opponent = Opponent::new();
+    let mut ball = Ball::new();
+    let mut game_state = GameState::WaitingForPlayers;
+    let mut last_move_time = get_time();
 
     loop {
         clear_background(BLACK);
 
-        // Draw player and opponent
-        player.draw();
-        opponent.draw();
-
-        // Handle network communication and update game state
         let mut buf = [0; 1024];
         match socket.recv_from(&mut buf) {
             Ok((amt, _)) => {
                 let received = std::str::from_utf8(&buf[..amt]).unwrap();
-                match received {
-                    "PLAYER 1" => {
-                        player.id = 1;
-                        game_state = GameState::WaitingForPlayer2;
-                        println!("Received message: Player 1 connected");
-                    }
-                    "PLAYER 2" => {
-                        player.id = 2;
-                        game_state = GameState::WaitingForGameStart;
-                        println!("Received message: Player 2 connected");
-                    }
-                    "GAME_START" => {
-                        game_state = GameState::GameRunning;
-                        println!("Received message: Game starting");
-                    }
-                    _ => {
-                        println!("Received message: {}", received);
+                println!("Received: {}", received); // Debug print
 
-                        let received_parts: Vec<&str> = received.split_whitespace().collect();
-
-                        let id = received_parts[0].parse::<u8>().unwrap();
-                        let x = received_parts[2].parse::<f32>().unwrap();
-                        let y = received_parts[3].parse::<f32>().unwrap();
-
-                        if id == player.id {
-                            continue;
-                        } else {
-                            opponent.update_position(x, y);
-                        }
+                if received.starts_with("PLAYER ") {
+                    let parts: Vec<&str> = received.split_whitespace().collect();
+                    if parts.len() >= 9 {
+                        player.set_position(parts[1].parse().unwrap(), parts[2].parse().unwrap());
+                        opponent.set_position(parts[4].parse().unwrap(), parts[5].parse().unwrap());
+                        ball.set_position(parts[7].parse().unwrap(), parts[8].parse().unwrap());
+                        game_state = GameState::GameStarted;
                     }
+                } else if received == "PLAYER 1" || received == "PLAYER 2" {
+                    player.id = received.split_whitespace().nth(1).unwrap().parse().unwrap();
+                    println!("Assigned as Player {}", player.id);
+                } else if received == "GAME STARTED" {
+                    game_state = GameState::GameStarted;
+                    println!("Game started");
                 }
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
             Err(e) => eprintln!("Error receiving data: {}", e),
         }
 
-        // Render game state text based on current game state
         match game_state {
-            GameState::WaitingForPlayer2 => {
-                draw_text("Waiting for Player 2", 20.0, 20.0, 30.0, WHITE);
+            GameState::WaitingForPlayers => {
+                draw_text("Waiting for players...", 20.0, 20.0, 30.0, WHITE);
             }
-            GameState::WaitingForGameStart => {
-                draw_text("Waiting for Game Start", 20.0, 60.0, 30.0, WHITE);
-            }
-            GameState::GameRunning => {
-                // Player movement controls
-                if is_key_down(KeyCode::Right) {
-                    player.move_right();
-                }
+            GameState::GameStarted => {
+                player.draw();
+                opponent.draw();
+                ball.draw();
+
                 if is_key_down(KeyCode::Left) {
-                    player.move_left();
+                    if get_time() - last_move_time > 0.05 {
+                        socket
+                            .send_to(format!("{} a", player.id).as_bytes(), SERVER_ADDR)
+                            .expect("Failed to send move");
+                        last_move_time = get_time();
+                    }
                 }
-                if is_key_down(KeyCode::Down) {
-                    player.move_down();
+                if is_key_down(KeyCode::Right) {
+                    if get_time() - last_move_time > 0.05 {
+                        socket
+                            .send_to(format!("{} d", player.id).as_bytes(), SERVER_ADDR)
+                            .expect("Failed to send move");
+                        last_move_time = get_time();
+                    }
                 }
-                if is_key_down(KeyCode::Up) {
-                    player.move_up();
-                }
-
-                // Send player position to server if changed
-                if last_x != player.x || last_y != player.y {
-                    let message = format!("{} POS {} {}", player.id, player.x, player.y);
-                    socket
-                        .send_to(message.as_bytes(), SERVER_ADDR)
-                        .expect("Could not send message");
-                }
-
-                last_x = player.x;
-                last_y = player.y;
             }
         }
 
-        // Check for escape key press to exit loop
+        // Debug information
+        draw_text(
+            &format!("Player: ({:.2}, {:.2})", player.x, player.y),
+            10.0,
+            SCREEN_HEIGHT - 60.0,
+            20.0,
+            WHITE,
+        );
+        draw_text(
+            &format!("Opponent: ({:.2}, {:.2})", opponent.x, opponent.y),
+            10.0,
+            SCREEN_HEIGHT - 40.0,
+            20.0,
+            WHITE,
+        );
+        draw_text(
+            &format!("Ball: ({:.2}, {:.2})", ball.x, ball.y),
+            10.0,
+            SCREEN_HEIGHT - 20.0,
+            20.0,
+            WHITE,
+        );
+
         if is_key_down(KeyCode::Escape) {
             break;
         }
 
-        // Proceed to next frame
         next_frame().await;
     }
-}
-
-enum GameState {
-    WaitingForPlayer2,
-    WaitingForGameStart,
-    GameRunning,
 }

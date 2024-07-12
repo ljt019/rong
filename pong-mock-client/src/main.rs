@@ -1,9 +1,11 @@
 use rand::Rng;
 use std::net::UdpSocket;
+use std::time::{Duration, Instant};
+
+const SERVER_ADDR: &str = "192.168.1.75:2906";
 
 fn main() {
     let socket = UdpSocket::bind("0.0.0.0:0").expect("couldn't bind to address");
-
     socket
         .set_nonblocking(true)
         .expect("set_nonblocking call failed");
@@ -11,54 +13,64 @@ fn main() {
     let mut rng = rand::thread_rng();
 
     socket
-        .connect("10.0.0.252:2906")
+        .connect(SERVER_ADDR)
         .expect("connect function failed");
 
     socket.send(b"CONNECT").expect("send function failed");
 
-    let mut player = None;
-
-    let mut game_started = false;
+    let mut player_id = None;
+    let mut game_state = GameState::WaitingForPlayers;
+    let mut last_move_time = Instant::now();
 
     loop {
-        let mut buf = [0; 256];
+        let mut buf = [0; 1024];
         match socket.recv_from(&mut buf) {
             Ok((amt, _)) => {
-                let received = &buf[..amt];
-                let received_str =
-                    std::str::from_utf8(received).expect("failed to convert to string");
+                let received =
+                    std::str::from_utf8(&buf[..amt]).expect("failed to convert to string");
+                println!("Received: {}", received);
 
-                match received_str {
-                    "PLAYER 1" => player = Some(1),
-                    "PLAYER 2" => player = Some(2),
-                    "GAME_START" => game_started = true,
-                    _ => (),
+                match received {
+                    "Player 1" => {
+                        player_id = Some(1);
+                        println!("Assigned as Player 1");
+                    }
+                    "Player 2" => {
+                        player_id = Some(2);
+                    }
+                    "GAME STARTED" => {
+                        game_state = GameState::GameStarted;
+                        println!("Game started");
+                    }
+                    _ => {}
                 }
-
-                println!("Received: {}", received_str);
             }
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                // No data available yet, so you can do other tasks here or simply continue
-            }
-            Err(e) => panic!("encountered IO error: {}", e),
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+            Err(e) => eprintln!("encountered IO error: {}", e),
         }
 
-        if game_started {
-            if let Some(player_number) = player {
-                // get random value between 0 and 100 for x
-                let x = rng.gen_range(0..101);
+        if let GameState::GameStarted = game_state {
+            if let Some(id) = player_id {
+                if last_move_time.elapsed() >= Duration::from_millis(500) {
+                    // Randomly choose to move left ('a') or right ('d')
+                    let movement = if rng.gen_bool(0.5) { 'a' } else { 'd' };
+                    let message = format!("{} {}", id, movement);
 
-                // get random value between 0 and 100 for y
-                let y = rng.gen_range(0..101);
+                    socket
+                        .send(message.as_bytes())
+                        .expect("send function failed");
 
-                let message = format!("{} POS {} {}", player_number, x, y);
-
-                socket
-                    .send(message.as_bytes())
-                    .expect("send function failed");
+                    println!("Sent: {}", message);
+                    last_move_time = Instant::now();
+                }
             }
         }
 
-        std::thread::sleep(std::time::Duration::from_secs(2));
+        std::thread::sleep(Duration::from_millis(50));
     }
+}
+
+enum GameState {
+    WaitingForPlayers,
+    GameStarted,
 }
