@@ -2,14 +2,39 @@
 
 This project is a networked implementation of the classic Pong game written in Rust. It consists of a server application that manages the game state and client applications that handle rendering and user input.
 
-## Features
+## For Players
+
+### Quick Start
+
+1. Download the latest client release for your operating system from the [Releases](https://github.com/your-username/networked-pong/releases) page.
+2. Extract the downloaded archive.
+3. Run the `pong-client` executable.
+
+### How to Play
+
+1. When you start the game, it will automatically connect to the public game server.
+2. Once another player connects, the game will start automatically.
+3. Use the left and right arrow keys to move your paddle.
+4. Try to hit the ball past your opponent's paddle to score points.
+5. The game continues until you close the client window.
+
+### System Requirements
+
+- Windows 10/11, macOS 10.15+, or Linux (Ubuntu 20.04+)
+- OpenGL 3.3+ compatible graphics card
+
+If you encounter any issues, please check the [Troubleshooting](#troubleshooting) section below or open an issue on GitHub.
+
+## For Developers
+
+### Features
 
 - Multiplayer Pong game over a network
 - Server-side game logic
 - Client-side rendering using Macroquad
 - UDP-based communication between server and clients
 
-## Project Structure
+### Project Structure
 
 The project is divided into two main components:
 
@@ -28,12 +53,12 @@ The project is divided into two main components:
    - `player.rs`: Handles player input and rendering
    - `server.rs`: Manages communication with the server
 
-## Prerequisites
+### Prerequisites
 
 - Rust programming language (latest stable version)
 - Cargo (Rust's package manager)
 
-## Setup
+### Setup
 
 1. Clone the repository:
 
@@ -55,7 +80,7 @@ The project is divided into two main components:
    cargo build --release
    ```
 
-## Running the Game
+### Running the Game (Development)
 
 1. Start the server:
 
@@ -73,9 +98,27 @@ The project is divided into two main components:
    ```
    Run this command in two separate terminal windows to start two clients.
 
-## How to Play
+### Network Protocol
 
-1. Once both clients are connected, the game will start automatically.
-2. Use the left and right arrow keys to move your paddle.
-3. Try to hit the ball past your opponent's paddle to score points.
-4. The game continues until you close the client window.
+The game uses a simple UDP-based protocol for communication between the server and clients. For more details, see the `game-protocol-messages.md` file in the project root.
+
+### Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Troubleshooting
+
+- **Connection Issues**: Ensure you have a stable internet connection. If you can't connect to the public server, check if your firewall is blocking the connection.
+- **Performance Issues**: Make sure your graphics drivers are up to date. If you're still experiencing lag, try closing other applications that might be using significant system resources.
+- **Input Lag**: If you're experiencing input lag, it might be due to network latency. Try connecting to a server closer to your geographical location if available.
+
+If you continue to experience issues, please open an issue on the GitHub repository with a detailed description of the problem and your system specifications.
+
+## Acknowledgments
+
+- The Macroquad library for providing easy-to-use game development tools for Rust.
+- The Rust community for their excellent documentation and support.
