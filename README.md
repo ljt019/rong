@@ -6,7 +6,7 @@ This project is a networked implementation of the classic Pong game written in R
 
 ### Quick Start
 
-1. Download the latest client release for your operating system from the [Releases](https://github.com/your-username/networked-pong/releases) page.
+1. Download the latest client release for your operating system from the [Releases](https://github.com/ljt019/rong/releases) page.
 2. Extract the downloaded archive.
 3. Run the `pong-client` executable.
 
@@ -63,7 +63,7 @@ The project is divided into two main components:
 1. Clone the repository:
 
    ```
-   git clone https://github.com/your-username/networked-pong.git
+   git clone https://github.com/ljt019/rong.git
    cd networked-pong
    ```
 
