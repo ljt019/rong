@@ -97,28 +97,3 @@ The project is divided into two main components:
    cargo run --release
    ```
    Run this command in two separate terminal windows to start two clients.
-
-### Network Protocol
-
-The game uses a simple UDP-based protocol for communication between the server and clients. For more details, see the `game-protocol-messages.md` file in the project root.
-
-### Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Troubleshooting
-
-- **Connection Issues**: Ensure you have a stable internet connection. If you can't connect to the public server, check if your firewall is blocking the connection.
-- **Performance Issues**: Make sure your graphics drivers are up to date. If you're still experiencing lag, try closing other applications that might be using significant system resources.
-- **Input Lag**: If you're experiencing input lag, it might be due to network latency. Try connecting to a server closer to your geographical location if available.
-
-If you continue to experience issues, please open an issue on the GitHub repository with a detailed description of the problem and your system specifications.
-
-## Acknowledgments
-
-- The Macroquad library for providing easy-to-use game development tools for Rust.
-- The Rust community for their excellent documentation and support.
