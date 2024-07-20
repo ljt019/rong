@@ -1,6 +1,6 @@
 # Rong
 
-This project is a networked implementation of the classic Pong game written in exlusively Rust. It consists of a server application that manages the game state and client applications that handle rendering and user input.
+This project is a networked implementation of the classic Pong game written in exclusively Rust. It consists of a server application that manages the game state and client applications that handle rendering and user input.
 
 ## Features
 
