@@ -100,6 +100,9 @@ The project is divided into two main components:
 
 ## Troubleshooting
 
-- Connection Issues: Ensure you have a stable internet connection. If you can't connect to the public server, check if your firewall is blocking the connection.
-- Performance Issues: Make sure your graphics drivers are up to date. If you're still experiencing lag, try closing other applications that might be using significant system resources.
-- Input Lag: If you're experiencing input lag, it might be due to network latency. Try connecting to a server closer to your geographical location if available.
+- Connection Issues
+  Ensure you have a stable internet connection. If you can't connect to the public server, check if your firewall is blocking the connection.
+- Performance Issues
+  Make sure your graphics drivers are up to date. If you're still experiencing lag, try closing other applications that might be using significant system resources.
+- Input Lag
+  If you're experiencing input lag, it might be due to network latency. Try connecting to a server closer to your geographical location if available.
