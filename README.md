@@ -79,20 +79,3 @@ The project is divided into two main components:
 2. Use the left and right arrow keys to move your paddle.
 3. Try to hit the ball past your opponent's paddle to score points.
 4. The game continues until you close the client window.
-
-## Network Protocol
-
-The game uses a simple UDP-based protocol for communication between the server and clients. For more details, see the `game-protocol-messages.md` file in the project root.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- The Macroquad library for providing easy-to-use game development tools for Rust.
-- The Rust community for their excellent documentation and support.
