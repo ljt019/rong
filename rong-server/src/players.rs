@@ -1,3 +1,26 @@
+/*
+
+This is the Player module. It contains the Player struct and its implementation.
+
+The player is a simple struct that only has 5 fields:
+- id: The unique id of the player
+- addr: The address of the player
+- socket: The UDP socket used to communicate with the player
+- x: The current x position of the player
+- y: The current y position of the player
+
+The Player struct has the following methods:
+- new: Creates a new Player with default values
+- update_position: Updates the position of the player
+- get_position: Gets the position of the player
+- get_id: Gets the id of the player
+- send: Sends a message to the player
+- get_addr: Gets the address of the player
+- move_left: Moves the player left
+- move_right: Moves the player right
+
+*/
+
 use std::io;
 use std::net::{SocketAddr, UdpSocket};
 
