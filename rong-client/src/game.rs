@@ -14,6 +14,7 @@ pub struct Game {
     ball: Ball,
     server: Server,
     pub game_state: GameState,
+    last_received_message: String,
 }
 
 impl Game {
@@ -24,37 +25,48 @@ impl Game {
             opponent,
             ball,
             game_state: GameState::WaitingForPlayers,
+            last_received_message: String::new(),
         }
     }
 
     pub fn update_state(&mut self) {
         match self.server.receive() {
-            Ok(received) => {
-                println!("Received: {}", received); // Debug print
+            Ok(Some(received)) => {
+                if received != self.last_received_message {
+                    println!("Received: {}", received);
+                    self.last_received_message = received.clone(); // Update the last received message
+                }
 
-                if received.starts_with("PLAYER ") {
+                if received == "PLAYER 1" || received == "PLAYER 2" {
+                    if let Some(id) = received.split_whitespace().nth(1) {
+                        if let Ok(parsed_id) = id.parse() {
+                            self.player.id = parsed_id;
+                            println!("Assigned as Player {}", self.player.id);
+                        }
+                    }
+                } else if received == "GAME STARTED" {
+                    self.game_state = GameState::GameStarted;
+                } else if received.starts_with("PLAYER ") {
                     let parts: Vec<&str> = received.split_whitespace().collect();
                     if parts.len() >= 9 {
                         self.player.set_position(
-                            f32::from_str(parts[1]).unwrap(),
-                            f32::from_str(parts[2]).unwrap(),
+                            f32::from_str(parts[1]).unwrap_or(0.0),
+                            f32::from_str(parts[2]).unwrap_or(0.0),
                         );
                         self.opponent.set_position(
-                            f32::from_str(parts[4]).unwrap(),
-                            f32::from_str(parts[5]).unwrap(),
+                            f32::from_str(parts[4]).unwrap_or(0.0),
+                            f32::from_str(parts[5]).unwrap_or(0.0),
                         );
                         self.ball.set_position(
-                            f32::from_str(parts[7]).unwrap(),
-                            f32::from_str(parts[8]).unwrap(),
+                            f32::from_str(parts[7]).unwrap_or(0.0),
+                            f32::from_str(parts[8]).unwrap_or(0.0),
                         );
                         self.game_state = GameState::GameStarted;
                     }
-                } else if received == "PLAYER 1" || received == "PLAYER 2" {
-                    self.player.id = received.split_whitespace().nth(1).unwrap().parse().unwrap();
-                    println!("Assigned as Player {}", self.player.id);
-                } else if received == "GAME STARTED" {
-                    self.game_state = GameState::GameStarted;
                 }
+            }
+            Ok(None) => {
+                // No data available right now, not an error
             }
             Err(e) => {
                 println!("Error receiving: {}", e);

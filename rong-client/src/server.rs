@@ -1,3 +1,4 @@
+use std::io::ErrorKind;
 use std::net::UdpSocket;
 
 const SERVER_ADDR: &str = "127.0.0.1:2906";
@@ -24,12 +25,16 @@ impl Server {
         Server { socket }
     }
 
-    pub fn receive(&self) -> Result<String, std::io::Error> {
+    pub fn receive(&self) -> Result<Option<String>, std::io::Error> {
         let mut buf = [0; 1024];
         match self.socket.recv(&mut buf) {
             Ok(amt) => {
                 let received = std::str::from_utf8(&buf[..amt]).unwrap();
-                Ok(received.to_string())
+                Ok(Some(received.to_string()))
+            }
+            Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                // No data available right now, not an error
+                Ok(None)
             }
             Err(e) => Err(e),
         }

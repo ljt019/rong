@@ -1,8 +1,7 @@
 /*
-
 This is the Ball module. It contains the Ball struct and its implementation.
 
-The ball is a simple struct that only has 4 fields:
+The ball is a struct that has the following fields:
 - x: The current x position of the ball
 - y: The current y position of the ball
 - dx: The change in x position of the ball
@@ -17,7 +16,6 @@ The Ball struct has the following methods:
 - bounce_off_wall: Bounces the ball off the wall
 - collides_with_player: Checks if the ball collides with the player
 - collides_with_wall: Checks if the ball collides with the wall
-
 */
 
 use crate::players::Player;
@@ -34,8 +32,8 @@ impl Ball {
         Self {
             x: 0.0,
             y: 0.0,
-            dx: 1.0,
-            dy: 1.0,
+            dx: 0.01,
+            dy: 0.01,
         }
     }
 
@@ -54,8 +52,8 @@ impl Ball {
         self.y += self.dy;
 
         // Keep the ball within bounds
-        self.x = self.x.max(0.0).min(9.0);
-        self.y = self.y.max(0.0).min(9.0);
+        self.x = self.x.clamp(0.0, 1.0);
+        self.y = self.y.clamp(0.0, 1.0);
     }
 
     // Bounces the ball off the player
@@ -65,30 +63,32 @@ impl Ball {
 
         // If the ball is at the same position as the player, reverse the direction of the ball
         // else move the ball towards the player
-        if self.x < player_x {
-            self.dx = -1.0;
+        self.dx = if self.x < player_x {
+            -0.01
         } else if self.x > player_x {
-            self.dx = 1.0;
-        }
+            0.01
+        } else {
+            self.dx
+        };
 
-        // If the ball is at the same position as the player, reverse the direction of the ball
-        // else move the ball towards the player
-        if self.y < player_y {
-            self.dy = -1.0;
+        self.dy = if self.y < player_y {
+            -0.01
         } else if self.y > player_y {
-            self.dy = 1.0;
-        }
+            0.01
+        } else {
+            self.dy
+        };
     }
 
     // Bounces the ball off the wall
     pub fn bounce_off_wall(&mut self) {
         // If the ball hits the left or right wall, reverse the x direction
-        if self.x <= 0.0 || self.x >= 9.0 {
+        if self.x <= 0.0 || self.x >= 1.0 {
             self.dx = -self.dx;
         }
 
         // If the ball hits the top or bottom wall, reverse the y direction
-        if self.y <= 0.0 || self.y >= 9.0 {
+        if self.y <= 0.0 || self.y >= 1.0 {
             self.dy = -self.dy;
         }
     }
@@ -97,12 +97,13 @@ impl Ball {
         // Get the player's position
         let (player_x, player_y) = player.get_position();
 
-        // Check if the ball is at the same position as the player
-        (self.x - player_x).abs() < 1.0 && (self.y - player_y).abs() < 1.0
+        // Check if the ball is close to the player
+        // We use a slightly larger collision box to account for the smaller movement increments
+        (self.x - player_x).abs() < 0.05 && (self.y - player_y).abs() < 0.05
     }
 
     pub fn collides_with_wall(&self) -> bool {
         // Check if the ball is at the edge of the board
-        self.x <= 0.0 || self.x >= 9.0 || self.y <= 0.0 || self.y >= 9.0
+        self.x <= 0.0 || self.x >= 1.0 || self.y <= 0.0 || self.y >= 1.0
     }
 }

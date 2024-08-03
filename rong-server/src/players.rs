@@ -1,8 +1,7 @@
 /*
-
 This is the Player module. It contains the Player struct and its implementation.
 
-The player is a simple struct that only has 5 fields:
+The player is a struct that has the following fields:
 - id: The unique id of the player
 - addr: The address of the player
 - socket: The UDP socket used to communicate with the player
@@ -18,22 +17,23 @@ The Player struct has the following methods:
 - get_addr: Gets the address of the player
 - move_left: Moves the player left
 - move_right: Moves the player right
-
 */
 
-use std::io;
-use std::net::{SocketAddr, UdpSocket};
+use crate::error::Result;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use tokio::net::UdpSocket;
 
 pub struct Player {
     id: u8,
     pub addr: SocketAddr,
-    socket: UdpSocket,
+    socket: Arc<UdpSocket>,
     x: f32,
     y: f32,
 }
 
 impl Player {
-    pub fn new(id: u8, addr: SocketAddr, socket: UdpSocket) -> Self {
+    pub fn new(id: u8, addr: SocketAddr, socket: Arc<UdpSocket>) -> Self {
         Self {
             id,
             addr,
@@ -56,8 +56,8 @@ impl Player {
         self.id
     }
 
-    pub fn send(&self, msg: &str) -> io::Result<usize> {
-        self.socket.send_to(msg.as_bytes(), self.addr)
+    pub async fn send(&self, msg: &str) -> Result<usize> {
+        Ok(self.socket.send_to(msg.as_bytes(), self.addr).await?)
     }
 
     pub fn get_addr(&self) -> SocketAddr {
@@ -65,10 +65,10 @@ impl Player {
     }
 
     pub fn move_left(&mut self) {
-        self.x = (self.x - 1.0).max(0.0);
+        self.x = (self.x - 0.01).max(0.0);
     }
 
     pub fn move_right(&mut self) {
-        self.x = (self.x + 1.0).min(9.0);
+        self.x = (self.x + 0.01).min(9.0);
     }
 }
