@@ -27,8 +27,8 @@ impl Player {
             target_x: 0.0,
             velocity: 0.0,
             max_speed: 0.02,
-            acceleration: 0.001,
-            deceleration: 0.002,
+            acceleration: 0.02,
+            deceleration: 0.25,
         }
     }
 
