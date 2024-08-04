@@ -2,12 +2,16 @@ use crate::ball::Ball;
 use crate::error::Result;
 use crate::players::Player;
 
+use futures::future;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
 use tracing::{error, info};
+
+const UPDATE_RATE: f32 = 60.0; // Updates per second
+const DT: f32 = 1.0 / UPDATE_RATE;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum GameState {
@@ -87,9 +91,9 @@ impl Game {
         for (id, player) in self.players.iter_mut() {
             let mut player = player.lock().await;
             if *id == 1 {
-                player.update_position(0.5, 0.9);
+                player.set_position(0.5, 0.9); // Player 1 at the bottom
             } else if *id == 2 {
-                player.update_position(0.5, 0.1);
+                player.set_position(0.5, 0.1); // Player 2 at the top
             }
         }
 
@@ -102,40 +106,44 @@ impl Game {
     }
 
     pub async fn update_game_state(&mut self) -> Result<()> {
-        self.ball.move_ball();
+        let players: Vec<Player> = future::join_all(
+            self.players
+                .values()
+                .map(|p| async { p.lock().await.clone() }),
+        )
+        .await;
 
-        let ball_x = self.ball.get_position().0;
-        let ball_y = self.ball.get_position().1;
-
-        for player in self.players.values() {
-            let player = player.lock().await;
-            if self.ball.collides_with_player(&player) {
-                self.ball.bounce_off_player(&player);
-            }
+        for player in &players {
+            let mut player = self.players.get_mut(&player.get_id()).unwrap().lock().await;
+            player.update_position(DT);
         }
 
+        self.ball.update_position(&players);
+
         if self.ball.collides_with_wall() {
-            let wall: &str = self.ball.which_wall();
-            match wall {
+            let wall: String = self.ball.which_wall().to_string();
+            match wall.as_str() {
                 "top" => {
                     info!("Top wall declared: {wall}");
                     self.add_point(2);
                     self.ball.set_position(0.5, 0.5);
+                    self.ball.reset_velocity(2);
                 }
                 "bottom" => {
                     info!("Bottom wall declared: {wall}");
                     self.add_point(1);
                     self.ball.set_position(0.5, 0.5);
+                    self.ball.reset_velocity(1);
                 }
-                "right" => {
-                    info!("Right wall declared: {wall}");
-                    self.ball.bounce_off_wall()
-                }
-                "left" => {
-                    info!("Left wall declared: {wall}");
-                    self.ball.bounce_off_wall()
+                "right" | "left" => {
+                    info!(
+                        "{} wall declared: {wall}",
+                        if wall == "right" { "Right" } else { "Left" }
+                    );
+                    self.ball.bounce_off_wall();
                 }
                 _ => {
+                    let (ball_x, ball_y) = self.ball.get_position();
                     error!("Unknown wall, coordinates: {wall} {ball_x} {ball_y}");
                 }
             }

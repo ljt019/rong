@@ -12,7 +12,7 @@ use error::Result;
 use game::{Game, GameState};
 
 const SERVER_ADDR: &str = "0.0.0.0:2906";
-const UPDATE_INTERVAL: Duration = Duration::from_millis(25); // 20 updates per second
+const UPDATE_INTERVAL: Duration = Duration::from_millis(16); // ~60 FPS
 
 #[tokio::main]
 async fn main() -> Result<()> {

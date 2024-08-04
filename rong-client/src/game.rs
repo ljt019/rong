@@ -10,10 +10,10 @@ const SCREEN_HEIGHT: f32 = 600.0;
 const SCREEN_WIDTH: f32 = 800.0;
 
 pub struct Game {
-    player: Player,
+    pub player: Player,
     opponent: Opponent,
     ball: Ball,
-    server: Server,
+    pub server: Server,
     pub game_state: GameState,
     last_received_message: String,
     score: (u8, u8),
