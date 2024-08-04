@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{error, info};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum GameState {
@@ -104,6 +104,9 @@ impl Game {
     pub async fn update_game_state(&mut self) -> Result<()> {
         self.ball.move_ball();
 
+        let ball_x = self.ball.get_position().0;
+        let ball_y = self.ball.get_position().1;
+
         for player in self.players.values() {
             let player = player.lock().await;
             if self.ball.collides_with_player(&player) {
@@ -112,16 +115,29 @@ impl Game {
         }
 
         if self.ball.collides_with_wall() {
-            match self.ball.which_wall() {
+            let wall: &str = self.ball.which_wall();
+            match wall {
                 "top" => {
+                    info!("Top wall declared: {wall}");
                     self.add_point(2);
                     self.ball.set_position(0.5, 0.5);
                 }
                 "bottom" => {
+                    info!("Bottom wall declared: {wall}");
                     self.add_point(1);
                     self.ball.set_position(0.5, 0.5);
                 }
-                _ => self.ball.bounce_off_wall(),
+                "right" => {
+                    info!("Right wall declared: {wall}");
+                    self.ball.bounce_off_wall()
+                }
+                "left" => {
+                    info!("Left wall declared: {wall}");
+                    self.ball.bounce_off_wall()
+                }
+                _ => {
+                    error!("Unknown wall, coordinates: {wall} {ball_x} {ball_y}");
+                }
             }
         }
 

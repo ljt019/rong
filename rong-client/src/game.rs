@@ -7,6 +7,7 @@ use macroquad::prelude::{clear_background, draw_text, BLACK, WHITE};
 use std::str::FromStr;
 
 const SCREEN_HEIGHT: f32 = 600.0;
+const SCREEN_WIDTH: f32 = 800.0;
 
 pub struct Game {
     player: Player,
@@ -103,31 +104,22 @@ impl Game {
                 self.opponent.draw();
                 self.ball.draw();
 
+                // Draw dotted line from left to right of the screen
+                for x in (0..(SCREEN_WIDTH as i32)).step_by(20) {
+                    macroquad::prelude::draw_line(
+                        x as f32,
+                        300.0, // Constant y-coordinate
+                        (x + 10) as f32,
+                        300.0, // Constant y-coordinate
+                        1.0,
+                        WHITE,
+                    );
+                }
+
                 draw_text(
                     &format!("Score: {} - {}", self.score.0, self.score.1),
                     10.0,
                     10.0,
-                    20.0,
-                    WHITE,
-                );
-                draw_text(
-                    &format!("Player: ({:.2}, {:.2})", self.player.x, self.player.y),
-                    10.0,
-                    SCREEN_HEIGHT - 60.0,
-                    20.0,
-                    WHITE,
-                );
-                draw_text(
-                    &format!("Opponent: ({:.2}, {:.2})", self.opponent.x, self.opponent.y),
-                    10.0,
-                    SCREEN_HEIGHT - 40.0,
-                    20.0,
-                    WHITE,
-                );
-                draw_text(
-                    &format!("Ball: ({:.2}, {:.2})", self.ball.x, self.ball.y),
-                    10.0,
-                    SCREEN_HEIGHT - 20.0,
                     20.0,
                     WHITE,
                 );

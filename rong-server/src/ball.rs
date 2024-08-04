@@ -99,18 +99,18 @@ impl Ball {
     }
 
     pub fn which_wall(&mut self) -> &str {
-        // define 4 walls
-        let top_wall = (0.0, 0.0);
-        let bottom_wall = (0.0, 1.0);
-        let left_wall = (0.0, 0.0);
-        let right_wall = (1.0, 0.0);
+        // Define 4 walls
+        let top_wall = (0.0..1.0, 0.0..0.02);
+        let bottom_wall = (0.0..1.0, 0.98..1.0);
+        let left_wall = (0.0..0.02, 0.0..1.0);
+        let right_wall = (0.98..1.0, 0.0..1.0);
 
-        // check which wall the ball is colliding with
+        // Check which wall the ball is colliding with
         match (self.x, self.y) {
-            (x, y) if (x, y) == top_wall => "top",
-            (x, y) if (x, y) == bottom_wall => "bottom",
-            (x, y) if (x, y) == left_wall => "left",
-            (x, y) if (x, y) == right_wall => "right",
+            (x, y) if top_wall.0.contains(&x) && top_wall.1.contains(&y) => "top",
+            (x, y) if bottom_wall.0.contains(&x) && bottom_wall.1.contains(&y) => "bottom",
+            (x, y) if left_wall.0.contains(&x) && left_wall.1.contains(&y) => "left",
+            (x, y) if right_wall.0.contains(&x) && right_wall.1.contains(&y) => "right",
             _ => "none",
         }
     }
