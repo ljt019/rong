@@ -8,15 +8,6 @@ The player is a struct that has the following fields:
 - x: The current x position of the player
 - y: The current y position of the player
 
-The Player struct has the following methods:
-- new: Creates a new Player with default values
-- update_position: Updates the position of the player
-- get_position: Gets the position of the player
-- get_id: Gets the id of the player
-- send: Sends a message to the player
-- get_addr: Gets the address of the player
-- move_left: Moves the player left
-- move_right: Moves the player right
 */
 
 use crate::error::Result;
@@ -65,10 +56,10 @@ impl Player {
     }
 
     pub fn move_left(&mut self) {
-        self.x = (self.x - 0.01).max(0.0);
+        self.x = (self.x - 0.05).max(0.05);
     }
 
     pub fn move_right(&mut self) {
-        self.x = (self.x + 0.01).min(9.0);
+        self.x = (self.x + 0.05).min(0.85);
     }
 }

@@ -15,6 +15,7 @@ pub struct Game {
     server: Server,
     pub game_state: GameState,
     last_received_message: String,
+    score: (u8, u8),
 }
 
 impl Game {
@@ -26,7 +27,12 @@ impl Game {
             ball,
             game_state: GameState::WaitingForPlayers,
             last_received_message: String::new(),
+            score: (0, 0),
         }
+    }
+
+    pub fn get_score(&self) -> (u8, u8) {
+        self.score
     }
 
     pub fn update_state(&mut self) {
@@ -61,6 +67,10 @@ impl Game {
                             f32::from_str(parts[7]).unwrap_or(0.0),
                             f32::from_str(parts[8]).unwrap_or(0.0),
                         );
+                        self.score = (
+                            u8::from_str(parts[10]).unwrap_or(0),
+                            u8::from_str(parts[11]).unwrap_or(0),
+                        );
                         self.game_state = GameState::GameStarted;
                     }
                 }
@@ -93,6 +103,13 @@ impl Game {
                 self.opponent.draw();
                 self.ball.draw();
 
+                draw_text(
+                    &format!("Score: {} - {}", self.score.0, self.score.1),
+                    10.0,
+                    10.0,
+                    20.0,
+                    WHITE,
+                );
                 draw_text(
                     &format!("Player: ({:.2}, {:.2})", self.player.x, self.player.y),
                     10.0,

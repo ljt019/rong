@@ -32,10 +32,10 @@ impl Player {
     }
 
     pub fn move_left(&mut self) {
-        self.x = (self.x - 0.01).max(0.0);
+        self.x = (self.x - 0.05).max(0.05);
     }
 
     pub fn move_right(&mut self) {
-        self.x = (self.x + 0.01).min(1.0 - PLAYER_WIDTH / SCREEN_WIDTH);
+        self.x = (self.x + 0.05).min(0.85);
     }
 }

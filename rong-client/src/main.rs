@@ -11,7 +11,7 @@ use opponent::Opponent;
 use player::Player;
 use server::Server;
 
-const MOVE_COOLDOWN: f32 = 0.1; // Cooldown time in seconds
+const MOVE_COOLDOWN_SECONDS: f32 = 0.1; // 100ms
 
 #[macroquad::main("Pong Client")]
 async fn main() {
@@ -33,7 +33,7 @@ async fn main() {
 
         match game.game_state {
             GameState::GameStarted => {
-                if current_time - last_move_time >= MOVE_COOLDOWN {
+                if current_time - last_move_time >= MOVE_COOLDOWN_SECONDS {
                     if is_key_down(KeyCode::Left) {
                         game.move_player_left();
                         last_move_time = current_time;

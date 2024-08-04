@@ -18,6 +18,6 @@ impl Ball {
     }
 
     pub fn draw(&self) {
-        draw_circle(self.x * SCREEN_WIDTH, self.y * SCREEN_HEIGHT, 10.0, WHITE);
+        draw_circle(self.x * SCREEN_WIDTH, self.y * SCREEN_HEIGHT, 6.0, WHITE);
     }
 }

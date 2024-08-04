@@ -12,7 +12,7 @@ use error::Result;
 use game::{Game, GameState};
 
 const SERVER_ADDR: &str = "0.0.0.0:2906";
-const UPDATE_INTERVAL: Duration = Duration::from_millis(50); // 20 updates per second
+const UPDATE_INTERVAL: Duration = Duration::from_millis(25); // 20 updates per second
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
     let socket = Arc::new(socket);
 
     // Initialize the game
-    let game = Arc::new(tokio::sync::Mutex::new(Game::new(Arc::clone(&socket))));
+    let game = Arc::new(tokio::sync::Mutex::new(Game::new()));
 
     // Create an interval for regular updates
     let mut update_interval = interval(UPDATE_INTERVAL);
@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
 
         tokio::select! {
             _ = update_interval.tick() => {
-                if let Err(e) = handle_game_update(game_clone.clone(), socket_clone.clone()).await {
+                if let Err(e) = handle_game_update(game_clone.clone()).await {
                     error!("Error in game update: {}", e);
                 }
             }
@@ -48,10 +48,7 @@ async fn main() -> Result<()> {
 }
 
 // Handle regular game updates
-async fn handle_game_update(
-    game: Arc<tokio::sync::Mutex<Game>>,
-    socket: Arc<UdpSocket>,
-) -> Result<()> {
+async fn handle_game_update(game: Arc<tokio::sync::Mutex<Game>>) -> Result<()> {
     let mut game = game.lock().await;
     if game.get_state() == GameState::GameStarted {
         game.update_game_state().await?;

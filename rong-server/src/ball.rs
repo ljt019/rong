@@ -7,15 +7,6 @@ The ball is a struct that has the following fields:
 - dx: The change in x position of the ball
 - dy: The change in y position of the ball
 
-The Ball struct has the following methods:
-- new: Creates a new Ball with default values
-- set_position: Sets the position of the ball
-- get_position: Gets the position of the ball
-- move_ball: Moves the ball by dx and dy
-- bounce_off_player: Bounces the ball off the player
-- bounce_off_wall: Bounces the ball off the wall
-- collides_with_player: Checks if the ball collides with the player
-- collides_with_wall: Checks if the ball collides with the wall
 */
 
 use crate::players::Player;
@@ -99,11 +90,28 @@ impl Ball {
 
         // Check if the ball is close to the player
         // We use a slightly larger collision box to account for the smaller movement increments
-        (self.x - player_x).abs() < 0.05 && (self.y - player_y).abs() < 0.05
+        (self.x - player_x).abs() < 0.07 && (self.y - player_y).abs() < 0.02
     }
 
     pub fn collides_with_wall(&self) -> bool {
-        // Check if the ball is at the edge of the board
+        // Check if the ball is at the edge of the screen
         self.x <= 0.0 || self.x >= 1.0 || self.y <= 0.0 || self.y >= 1.0
+    }
+
+    pub fn which_wall(&mut self) -> &str {
+        // define 4 walls
+        let top_wall = (0.0, 0.0);
+        let bottom_wall = (0.0, 1.0);
+        let left_wall = (0.0, 0.0);
+        let right_wall = (1.0, 0.0);
+
+        // check which wall the ball is colliding with
+        match (self.x, self.y) {
+            (x, y) if (x, y) == top_wall => "top",
+            (x, y) if (x, y) == bottom_wall => "bottom",
+            (x, y) if (x, y) == left_wall => "left",
+            (x, y) if (x, y) == right_wall => "right",
+            _ => "none",
+        }
     }
 }

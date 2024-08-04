@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
-use tracing::{debug, info};
+use tracing::info;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum GameState {
@@ -19,21 +19,33 @@ pub struct Game {
     pub players: HashMap<u8, Arc<Mutex<Player>>>,
     ball: Ball,
     state: GameState,
-    socket: Arc<UdpSocket>,
+    score: (u8, u8),
 }
 
 impl Game {
-    pub fn new(socket: Arc<UdpSocket>) -> Self {
+    pub fn new() -> Self {
         Self {
             players: HashMap::new(),
             ball: Ball::new(),
             state: GameState::WaitingForPlayers,
-            socket,
+            score: (0, 0),
         }
     }
 
     pub fn get_state(&self) -> GameState {
         self.state
+    }
+
+    pub fn get_score(&self) -> (u8, u8) {
+        self.score
+    }
+
+    pub fn add_point(&mut self, player_id: u8) {
+        if player_id == 1 {
+            self.score.0 += 1;
+        } else if player_id == 2 {
+            self.score.1 += 1;
+        }
     }
 
     pub async fn connect_player(&mut self, src: SocketAddr, socket: Arc<UdpSocket>) -> Result<()> {
@@ -42,7 +54,7 @@ impl Game {
         let player_count = self.players.len();
 
         if player_count < 2 {
-            let player = Arc::new(Mutex::new(Player::new(
+            let player: Arc<Mutex<Player>> = Arc::new(Mutex::new(Player::new(
                 player_count as u8 + 1,
                 src,
                 Arc::clone(&socket),
@@ -100,7 +112,17 @@ impl Game {
         }
 
         if self.ball.collides_with_wall() {
-            self.ball.bounce_off_wall();
+            match self.ball.which_wall() {
+                "top" => {
+                    self.add_point(2);
+                    self.ball.set_position(0.5, 0.5);
+                }
+                "bottom" => {
+                    self.add_point(1);
+                    self.ball.set_position(0.5, 0.5);
+                }
+                _ => self.ball.bounce_off_wall(),
+            }
         }
 
         Ok(())
@@ -118,8 +140,11 @@ impl Game {
 
             let (ball_x, ball_y) = self.ball.get_position();
 
+            let score_p1 = self.score.0;
+            let score_p2 = self.score.1;
+
             let msg = format!(
-                "PLAYER {player_x} {player_y} OPPONENT {opponent_x} {opponent_y} BALL {ball_x} {ball_y}",
+                "PLAYER {player_x} {player_y} OPPONENT {opponent_x} {opponent_y} BALL {ball_x} {ball_y} SCORE {score_p1} {score_p2}",
             );
 
             player.send(&msg).await?;
