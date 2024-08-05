@@ -6,6 +6,7 @@ mod server;
 
 use ball::Ball;
 use game::{Game, GameState};
+use macroquad::audio::{load_sound_from_bytes, play_sound, PlaySoundParams};
 use macroquad::prelude::*;
 use opponent::Opponent;
 use player::Player;
@@ -14,15 +15,33 @@ use std::time::Instant;
 
 const MOVE_COOLDOWN_SECONDS: f32 = 0.1; // 100ms
 
+const BALL_COLLISION_SOUND_BYTES: &[u8] = include_bytes!("../assets/wii_game_disc_case_close.wav");
+
+const SCORE_SOUND_BYTES: &[u8] = include_bytes!("../assets/coin_collect_eleven.wav");
+
 #[macroquad::main("Pong Client")]
 async fn main() {
+    //setup game assets
+    let ball_collision_sound = load_sound_from_bytes(BALL_COLLISION_SOUND_BYTES)
+        .await
+        .unwrap();
+
+    let score_sound = load_sound_from_bytes(SCORE_SOUND_BYTES).await.unwrap();
+
     // Set up structs for game objects
     let player = Player::new(0);
     let opponent = Opponent::new();
     let ball = Ball::new();
     let server = Server::new();
     // Set up game with the created objects
-    let mut game = Game::new(server, player, opponent, ball);
+    let mut game = Game::new(
+        server,
+        player,
+        opponent,
+        ball,
+        ball_collision_sound,
+        score_sound,
+    );
 
     let mut last_update = Instant::now();
 
