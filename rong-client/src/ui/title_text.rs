@@ -125,12 +125,8 @@ impl TitleText {
         let total_pixels = self.text.len() * LETTER_WIDTH;
         let wave_start = (self.wave.position / 100.0 * total_pixels as f32) as usize;
 
-        //let wave_color = Color::new(1.0, 0.5, 0.0, 1.0); // Orange
-
-        // Bright Whitish yellow/orange
         let wave_color: Color = Color::new(1.0, 0.9, 0.7, 1.0);
-
-        let base_color = Color::new(0.5, 0.25, 0.0, 1.0); // Dim orange/brown
+        let base_color = Color::new(0.5, 0.25, 0.0, 1.0);
 
         for (row, pixels) in letter.iter().enumerate() {
             for (col, &pixel) in pixels.iter().enumerate() {
@@ -141,7 +137,7 @@ impl TitleText {
 
                     let color = if distance_from_wave < WAVE_WIDTH {
                         let t = distance_from_wave as f32 / WAVE_WIDTH as f32;
-                        let brightness = (1.0 - t) * 0.5 + 0.5; // Adjust this for different shimmer intensity
+                        let brightness = (1.0 - t) * 0.5 + 0.5;
                         Color::new(
                             wave_color.r,
                             wave_color.g * brightness,

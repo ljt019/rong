@@ -1,30 +1,21 @@
-mod ball;
+mod constants;
 mod game;
-mod opponent;
-mod pixel_text;
-mod player;
-mod server;
-mod title_ball;
-mod title_text;
+mod network;
+mod ui;
 
-use ball::Ball;
-use game::{Game, GameState};
+use constants::*;
+use game::{Ball, Game, Opponent, Player};
+use network::Server;
+
 use macroquad::audio::{load_sound_from_bytes, play_sound, PlaySoundParams};
 use macroquad::prelude::*;
-use opponent::Opponent;
-use player::Player;
-use server::Server;
-use std::time::Instant;
-
-const MOVE_COOLDOWN_SECONDS: f32 = 0.1; // 100ms
 
 const BALL_COLLISION_SOUND_BYTES: &[u8] = include_bytes!("../assets/wii_game_disc_case_close.wav");
-
 const SCORE_SOUND_BYTES: &[u8] = include_bytes!("../assets/coin_collect_eleven.wav");
 
 #[macroquad::main("Pong Client")]
 async fn main() {
-    //setup game assets
+    // Setup game assets
     let ball_collision_sound = load_sound_from_bytes(BALL_COLLISION_SOUND_BYTES)
         .await
         .unwrap();
@@ -36,6 +27,7 @@ async fn main() {
     let opponent = Opponent::new();
     let ball = Ball::new();
     let server = Server::new();
+
     // Set up game with the created objects
     let mut game = Game::new(
         server,
@@ -46,23 +38,18 @@ async fn main() {
         score_sound,
     );
 
-    let mut last_update = Instant::now();
-
     loop {
-        let dt = last_update.elapsed().as_secs_f32();
-        last_update = Instant::now();
+        let dt = get_frame_time();
 
         game.update_state();
         game.player.update(dt);
 
         match game.game_state {
-            GameState::GameStarted => {
+            game::GameState::GameStarted => {
                 if is_key_down(KeyCode::Left) {
-                    game.player.move_left();
-                    game.server.send_key_press(game.player.id.to_string(), "a");
+                    game.move_player_left();
                 } else if is_key_down(KeyCode::Right) {
-                    game.player.move_right();
-                    game.server.send_key_press(game.player.id.to_string(), "d");
+                    game.move_player_right();
                 }
             }
             _ => {}
@@ -77,3 +64,25 @@ async fn main() {
         next_frame().await;
     }
 }
+
+/*
+
+src/
+├── main.rs
+├── game/
+│   ├── mod.rs
+│   ├── ball.rs
+│   ├── player.rs
+│   ├── opponent.rs
+│   └── state.rs
+├── ui/
+│   ├── mod.rs
+│   ├── pixel_text.rs
+│   ├── title_text.rs
+│   └── title_ball.rs
+├── network/
+│   ├── mod.rs
+│   └── server.rs
+└── constants.rs
+
+*/

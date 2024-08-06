@@ -1,9 +1,5 @@
+use crate::constants::{PLAYER_HEIGHT, PLAYER_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH};
 use macroquad::prelude::{draw_rectangle, Color};
-
-const PLAYER_WIDTH: f32 = 100.0;
-const PLAYER_HEIGHT: f32 = 10.0;
-const SCREEN_WIDTH: f32 = 800.0;
-const SCREEN_HEIGHT: f32 = 600.0;
 
 pub struct Opponent {
     pub x: f32,

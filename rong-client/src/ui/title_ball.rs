@@ -1,3 +1,4 @@
+use crate::constants::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use macroquad::prelude::*;
 
 const BALL_RADIUS: f32 = 6.0;
@@ -34,19 +35,19 @@ impl TitleBall {
         }
 
         // Bounce off screen edges
-        if self.position.x <= BALL_RADIUS || self.position.x >= screen_width() - BALL_RADIUS {
+        if self.position.x <= BALL_RADIUS || self.position.x >= SCREEN_WIDTH - BALL_RADIUS {
             self.velocity.x = -self.velocity.x;
             self.position.x = self
                 .position
                 .x
-                .clamp(BALL_RADIUS, screen_width() - BALL_RADIUS);
+                .clamp(BALL_RADIUS, SCREEN_WIDTH - BALL_RADIUS);
         }
-        if self.position.y <= BALL_RADIUS || self.position.y >= screen_height() - BALL_RADIUS {
+        if self.position.y <= BALL_RADIUS || self.position.y >= SCREEN_HEIGHT - BALL_RADIUS {
             self.velocity.y = -self.velocity.y;
             self.position.y = self
                 .position
                 .y
-                .clamp(BALL_RADIUS, screen_height() - BALL_RADIUS);
+                .clamp(BALL_RADIUS, SCREEN_HEIGHT - BALL_RADIUS);
         }
     }
 

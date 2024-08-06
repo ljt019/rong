@@ -1,4 +1,4 @@
-use macroquad::prelude::{draw_rectangle, Color, WHITE};
+use macroquad::prelude::{draw_rectangle, Color};
 
 pub struct PixelText {
     text: String,

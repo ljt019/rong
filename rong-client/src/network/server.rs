@@ -2,6 +2,7 @@ use std::io::ErrorKind;
 use std::net::UdpSocket;
 
 const SERVER_ADDR: &str = "127.0.0.1:2906";
+
 pub struct Server {
     socket: UdpSocket,
 }
