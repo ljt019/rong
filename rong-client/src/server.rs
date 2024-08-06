@@ -18,11 +18,13 @@ impl Server {
             .connect(SERVER_ADDR)
             .expect("Could not bind to server address");
 
-        socket
+        Server { socket }
+    }
+
+    pub fn send_connect(&self) {
+        self.socket
             .send(b"CONNECT")
             .expect("Failed to send connect message");
-
-        Server { socket }
     }
 
     pub fn receive(&self) -> Result<Option<String>, std::io::Error> {

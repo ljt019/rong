@@ -1,4 +1,4 @@
-use macroquad::prelude::{draw_rectangle, GREEN};
+use macroquad::prelude::{draw_rectangle, Color};
 
 const SCREEN_WIDTH: f32 = 800.0;
 const SCREEN_HEIGHT: f32 = 600.0;
@@ -16,6 +16,7 @@ pub struct Player {
     pub max_speed: f32,
     pub acceleration: f32,
     pub deceleration: f32,
+    color: Color,
 }
 
 impl Player {
@@ -29,6 +30,7 @@ impl Player {
             max_speed: 0.02,
             acceleration: 0.02,
             deceleration: 0.25,
+            color: Color::new(0.5, 0.25, 0.0, 1.0),
         }
     }
 
@@ -75,7 +77,7 @@ impl Player {
             self.y * SCREEN_HEIGHT,
             PLAYER_WIDTH,
             PLAYER_HEIGHT,
-            GREEN,
+            self.color,
         );
     }
 }

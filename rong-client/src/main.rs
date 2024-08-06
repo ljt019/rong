@@ -1,8 +1,11 @@
 mod ball;
 mod game;
 mod opponent;
+mod pixel_text;
 mod player;
 mod server;
+mod title_ball;
+mod title_text;
 
 use ball::Ball;
 use game::{Game, GameState};
