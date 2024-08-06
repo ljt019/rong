@@ -272,11 +272,12 @@ impl Game {
                 self.exit_text
                     .draw(self.selected_option == TitleOption::Exit);
 
-                if self.debug_mode {
-                    for bound in self.title_bounds.iter() {
-                        draw_rectangle_lines(bound.x, bound.y, bound.w, bound.h, 2.0, LIME);
-                    }
-                }
+                // draw bounding boxes on menu text
+                //if self.debug_mode {
+                //    for bound in self.title_bounds.iter() {
+                //        draw_rectangle_lines(bound.x, bound.y, bound.w, bound.h, 2.0, LIME);
+                //    }
+                //}
             }
             GameState::WaitingForPlayers => {
                 draw_text(
