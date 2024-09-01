@@ -10,14 +10,17 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libudev-dev
+          sudo apt-get install -y libasound2-dev
+
       - name: Run tests
         run: |
           cd rong-server
