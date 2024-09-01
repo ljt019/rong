@@ -1,4 +1,5 @@
 # Rong
+![Rust CI](https://github.com/ljt019/light_controller_overhaul/actions/workflows/rust.yml/badge.svg?branch=main) ![Rust CI](https://github.com/ljt019/light_controller_overhaul/actions/workflows/rust.yml/badge.svg?branch=main) ![Rust CI](https://github.com/ljt019/light_controller_overhaul/actions/workflows/rust.yml/badge.svg?branch=main)
 
 This project is a networked implementation of the classic Pong game written in Rust. It consists of a server application that manages the game state and client applications that handle rendering and user input.
 
