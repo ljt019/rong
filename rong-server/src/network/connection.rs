@@ -2,25 +2,29 @@ use bincode;
 use rong_shared::model::{ClientMessage, NetworkPacket, ServerMessage};
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex};
 
 pub struct Connection {
-    socket: UdpSocket,
+    socket: Arc<Mutex<UdpSocket>>,
 }
 
 impl Connection {
     pub async fn new(address: &str) -> Result<Self, std::io::Error> {
         let socket = UdpSocket::bind(address).await?;
-        Ok(Connection { socket })
+        Ok(Connection {
+            socket: Arc::new(Mutex::new(socket)),
+        })
     }
 
     pub async fn receive_packet(
         &self,
     ) -> Result<(NetworkPacket<ClientMessage>, std::net::SocketAddr), std::io::Error> {
         let mut buf = [0; 1024];
-        let (size, addr) = self.socket.recv_from(&mut buf).await?;
+        let socket = self.socket.lock().await;
+        let (size, addr) = socket.recv_from(&mut buf).await?;
 
         let packet: NetworkPacket<ClientMessage> = bincode::deserialize(&buf[..size])
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
@@ -36,29 +40,30 @@ impl Connection {
         let buf = bincode::serialize(&packet)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
-        self.socket.send_to(&buf, target).await?;
+        let socket = self.socket.lock().await;
+        socket.send_to(&buf, target).await?;
         Ok(())
     }
 }
 
 pub struct ConnectionManager {
-    connection: Connection,
-    clients: std::collections::HashMap<std::net::SocketAddr, ClientInfo>,
+    socket: Arc<UdpSocket>,
+    clients: HashMap<SocketAddr, ClientInfo>,
     packet_sender: mpsc::Sender<(NetworkPacket<ClientMessage>, SocketAddr)>,
 }
 
+#[derive(Clone)]
 struct ClientInfo {
-    last_seen: std::time::Instant,
+    last_seen: Instant,
 }
 
 impl ConnectionManager {
     pub async fn new(
-        address: &str,
+        socket: Arc<UdpSocket>,
         packet_sender: mpsc::Sender<(NetworkPacket<ClientMessage>, SocketAddr)>,
     ) -> Result<Self, std::io::Error> {
-        let connection = Connection::new(address).await?;
         Ok(ConnectionManager {
-            connection,
+            socket,
             clients: HashMap::new(),
             packet_sender,
         })
@@ -83,55 +88,54 @@ impl ConnectionManager {
 
     pub async fn broadcast(
         &self,
-        packet: NetworkPacket<ServerMessage>,
+        packet: &NetworkPacket<ServerMessage>,
     ) -> Result<(), std::io::Error> {
-        let serialized = bincode::serialize(&packet)
+        let serialized = bincode::serialize(packet)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
         for &addr in self.clients.keys() {
-            self.connection.socket.send_to(&serialized, addr).await?;
+            self.socket.send_to(&serialized, addr).await?;
         }
         Ok(())
     }
 
-    pub async fn handle_incoming_packets(&mut self) -> Result<(), std::io::Error> {
+    pub async fn send_to(
+        &self,
+        packet: &NetworkPacket<ServerMessage>,
+        addr: SocketAddr,
+    ) -> Result<(), std::io::Error> {
+        let serialized = bincode::serialize(packet)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+
+        self.socket.send_to(&serialized, addr).await?;
+
+        Ok(())
+    }
+
+    pub async fn run(&mut self) -> Result<(), std::io::Error> {
         loop {
             let mut buf = [0; 1024];
-            match self.connection.socket.recv_from(&mut buf).await {
-                Ok((size, addr)) => {
-                    self.update_client(addr);
-                    match bincode::deserialize::<NetworkPacket<ClientMessage>>(&buf[..size]) {
-                        Ok(packet) => {
-                            if let Err(e) = self.packet_sender.send((packet, addr)).await {
-                                eprintln!("Failed to send packet to handler: {}", e);
-                            }
-                        }
-                        Err(e) => eprintln!("Failed to deserialize packet: {}", e),
+            let (size, addr) = self.socket.recv_from(&mut buf).await?;
+
+            self.update_client(addr);
+            match bincode::deserialize::<NetworkPacket<ClientMessage>>(&buf[..size]) {
+                Ok(packet) => {
+                    if let Err(e) = self.packet_sender.send((packet, addr)).await {
+                        eprintln!("Failed to send packet to handler: {}", e);
                     }
                 }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    // No more packets to process
-                    break;
-                }
-                Err(e) => return Err(e),
+                Err(e) => eprintln!("Failed to deserialize packet: {}", e),
             }
         }
-        Ok(())
     }
+}
 
-    pub async fn run(mut self) {
-        let mut interval = tokio::time::interval(Duration::from_secs(60));
-        loop {
-            tokio::select! {
-                _ = interval.tick() => {
-                    self.remove_inactive_clients(Duration::from_secs(300)); // 5 minutes timeout
-                }
-                result = self.handle_incoming_packets() => {
-                    if let Err(e) = result {
-                        eprintln!("Error handling incoming packets: {}", e);
-                    }
-                }
-            }
+impl Clone for ConnectionManager {
+    fn clone(&self) -> Self {
+        ConnectionManager {
+            socket: self.socket.clone(),
+            clients: self.clients.clone(),
+            packet_sender: self.packet_sender.clone(),
         }
     }
 }

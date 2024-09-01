@@ -6,12 +6,14 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
 
+#[derive(Clone)]
 pub struct PlayerConnection {
     player_id: model::PlayerId,
     addr: SocketAddr,
     last_seen: Instant,
 }
 
+#[derive(Clone)]
 pub struct PlayerManager {
     players: HashMap<model::PlayerId, Player>,
     connections: HashMap<SocketAddr, PlayerConnection>,

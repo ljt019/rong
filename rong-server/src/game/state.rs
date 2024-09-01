@@ -2,7 +2,7 @@ use super::ball::Ball;
 use super::player::player_manager::PlayerManager;
 use super::player::Player;
 use rong_shared::error::{GameError, Result};
-use rong_shared::model::{GameState, PlayerId, Position, ScorePacket};
+use rong_shared::model::{GameState, PlayerId, Position, PositionPacket, ScorePacket};
 use std::time::{Duration, Instant};
 
 pub struct State {
@@ -23,6 +23,34 @@ impl State {
             scores: ScorePacket::new(0, 0),
             last_update: Instant::now(),
             game_duration: Duration::from_secs(0),
+        }
+    }
+
+    pub fn start_new_match(&mut self) -> Result<()> {
+        match self.state {
+            GameState::WaitingForPlayers => {
+                if self.players.get_player_count() == 2 {
+                    self.state = GameState::GameStarted;
+                    self.game_duration = Duration::from_secs(0);
+                    self.ball.reset(rand::random::<u8>() % 2 + 1);
+                    self.scores = ScorePacket::new(0, 0);
+                    self.last_update = Instant::now();
+
+                    // Reset player positions
+                    for player in self.players.get_players_mut().values_mut() {
+                        player.set_position(0.5, 0.5); // Set to center of the screen
+                    }
+
+                    Ok(())
+                } else {
+                    Err(GameError::Io(
+                        "Not enough players to start a match".to_string(),
+                    ))
+                }
+            }
+            _ => Err(GameError::Io(
+                "Cannot start a new match in the current state".to_string(),
+            )),
         }
     }
 
@@ -91,10 +119,14 @@ impl State {
         }
     }
 
-    pub async fn get_positions(&self) -> Result<(Position, Position, Position)> {
+    pub async fn get_positions(&self) -> Result<PositionPacket> {
         let player_positions = self.players.get_positions().await;
         let ball_position = self.ball.get_position();
-        Ok((player_positions[0].1, player_positions[1].1, ball_position))
+
+        let position_packet =
+            PositionPacket::new(player_positions[0].1, player_positions[1].1, ball_position);
+
+        Ok(position_packet)
     }
 
     pub fn get_state(&self) -> GameState {

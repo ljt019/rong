@@ -124,7 +124,7 @@ impl PositionPacket {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Copy, Clone)]
 pub struct ScorePacket {
     player1: u8,
     player2: u8,
