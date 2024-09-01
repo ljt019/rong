@@ -14,15 +14,21 @@ pub struct Player {
     id: model::PlayerId,
     position: model::Position,
     velocity: f32,
+    addr: SocketAddr,
 }
 
 impl Player {
-    pub fn new(id: model::PlayerId) -> Self {
+    pub fn new(id: model::PlayerId, addr: SocketAddr) -> Self {
         Self {
             id,
             position: (0.0, 0.0),
             velocity: 0.0,
+            addr,
         }
+    }
+
+    pub fn get_addr(&self) -> SocketAddr {
+        self.addr
     }
 
     pub fn update_position(&mut self, dt: f32) {

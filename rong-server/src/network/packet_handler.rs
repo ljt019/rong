@@ -1,5 +1,6 @@
 use crate::game::player::player_manager::PlayerManager;
 use crate::game::state::State;
+use rong_shared::error;
 use rong_shared::model::{ClientMessage, Movement, NetworkPacket, PositionPacket, ServerMessage};
 use std::net::SocketAddr;
 
@@ -16,7 +17,7 @@ impl PacketHandler {
         &mut self,
         packet: NetworkPacket<ClientMessage>,
         addr: SocketAddr,
-        game_state: &mut State,
+        _game_state: &mut State,
     ) -> Option<NetworkPacket<ServerMessage>> {
         self.player_manager.update_last_seen(addr);
 
@@ -85,16 +86,25 @@ impl PacketHandler {
     }
 
     async fn send_game_update(&self, game_state: &State) -> NetworkPacket<ServerMessage> {
-        let state = game_state.get_state().await;
+        let state = game_state.get_state();
 
         NetworkPacket::new(0, 0, ServerMessage::GameStateChange(state))
     }
 
-    async fn send_entity_positions(&self, game_state: &State) -> NetworkPacket<ServerMessage> {
-        let (player1, player2, ball) = game_state.get_positions().await;
-
-        let position_packet = PositionPacket::new(player1, player2, ball);
-
-        NetworkPacket::new(0, 0, ServerMessage::PositionUpdate(position_packet))
+    async fn send_entity_positions(
+        &self,
+        game_state: &State,
+    ) -> Result<NetworkPacket<ServerMessage>, error::GameError> {
+        match game_state.get_positions().await {
+            Ok((player1, player2, ball)) => {
+                let position_packet = PositionPacket::new(player1, player2, ball);
+                Ok(NetworkPacket::new(
+                    0,
+                    0,
+                    ServerMessage::PositionUpdate(position_packet),
+                ))
+            }
+            Err(e) => Err(e),
+        }
     }
 }

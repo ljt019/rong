@@ -32,7 +32,7 @@ impl PlayerManager {
         id: model::PlayerId,
         addr: SocketAddr,
     ) -> Result<(), error::ServerError> {
-        let player = Player::new(id);
+        let player = Player::new(id, addr);
         self.players.insert(id, player);
         self.connections.insert(
             addr,
