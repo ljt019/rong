@@ -12,7 +12,7 @@ impl PacketHandler {
         PacketHandler { player_manager }
     }
 
-    pub fn handle_packet(
+    pub async fn handle_packet(
         &mut self,
         packet: NetworkPacket<ClientMessage>,
         addr: SocketAddr,
@@ -22,7 +22,10 @@ impl PacketHandler {
 
         match packet.get_payload() {
             ClientMessage::Connect(player_id) => {
-                self.player_manager.add_player(*player_id, addr);
+                self.player_manager
+                    .add_player(*player_id, addr)
+                    .await
+                    .ok()?;
 
                 return Some(NetworkPacket::new(
                     packet.get_sequence(),
@@ -31,7 +34,7 @@ impl PacketHandler {
                 ));
             }
             ClientMessage::Disconnect(player_id) => {
-                self.player_manager.remove_player(*player_id);
+                self.player_manager.remove_player(*player_id).await.ok()?;
 
                 return Some(NetworkPacket::new(
                     packet.get_sequence(),
@@ -44,15 +47,21 @@ impl PacketHandler {
                 let (player_id, movement) = movement_packet.get_payload();
 
                 match movement {
-                    Movement::Up => {
-                        self.player_manager.update_player_position(*player_id, 1.0);
-                    }
-                    Movement::Down => {
-                        self.player_manager.update_player_position(*player_id, -1.0);
-                    }
-                    Movement::Stop => {
-                        self.player_manager.update_player_position(*player_id, 0.0);
-                    }
+                    Movement::Up => self
+                        .player_manager
+                        .update_player_position(*player_id, 1.0)
+                        .await
+                        .ok()?,
+                    Movement::Down => self
+                        .player_manager
+                        .update_player_position(*player_id, -1.0)
+                        .await
+                        .ok()?,
+                    Movement::Stop => self
+                        .player_manager
+                        .update_player_position(*player_id, 0.0)
+                        .await
+                        .ok()?,
                 }
 
                 // Ack movement received

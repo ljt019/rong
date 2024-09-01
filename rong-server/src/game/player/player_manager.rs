@@ -27,7 +27,11 @@ impl PlayerManager {
         }
     }
 
-    pub async fn add_player(&mut self, id: model::PlayerId, addr: SocketAddr) -> error::Result<()> {
+    pub async fn add_player(
+        &mut self,
+        id: model::PlayerId,
+        addr: SocketAddr,
+    ) -> Result<(), error::ServerError> {
         let player = Player::new(id);
         self.players.insert(id, player);
         self.connections.insert(
@@ -41,7 +45,7 @@ impl PlayerManager {
         Ok(())
     }
 
-    pub async fn remove_player(&mut self, id: model::PlayerId) -> error::Result<()> {
+    pub async fn remove_player(&mut self, id: model::PlayerId) -> Result<(), error::ServerError> {
         self.players.remove(&id);
         self.connections.retain(|_, conn| conn.player_id != id);
         Ok(())
@@ -51,7 +55,7 @@ impl PlayerManager {
         &mut self,
         id: model::PlayerId,
         dt: f32,
-    ) -> error::Result<()> {
+    ) -> Result<(), error::ServerError> {
         if let Some(player) = self.players.get_mut(&id) {
             player.update_position(dt);
         }
