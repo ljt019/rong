@@ -5,6 +5,8 @@ use std::time::{Duration, Instant};
 const SERVER_ADDR: &str = "127.0.0.1:2906";
 const MOVE_INTERVAL: Duration = Duration::from_millis(16); // 60Hz update frequency
 
+// comment just to trigger github action
+
 #[derive(Debug)]
 enum GameState {
     WaitingForPlayers,
