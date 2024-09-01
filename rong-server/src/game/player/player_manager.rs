@@ -94,10 +94,22 @@ impl PlayerManager {
         self.players.get_mut(&id)
     }
 
+    pub fn get_players(&self) -> &HashMap<model::PlayerId, Player> {
+        &self.players
+    }
+
+    pub fn get_players_mut(&mut self) -> &mut HashMap<model::PlayerId, Player> {
+        &mut self.players
+    }
+
     pub fn update_last_seen(&mut self, addr: SocketAddr) {
         if let Some(conn) = self.connections.get_mut(&addr) {
             conn.last_seen = Instant::now();
         }
+    }
+
+    pub fn get_player_count(&self) -> usize {
+        self.players.len()
     }
 
     pub fn remove_inactive_players(&mut self, timeout: Duration) {
