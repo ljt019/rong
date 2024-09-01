@@ -11,3 +11,5 @@ thiserror = "1.0"
 futures = "0.3"
 rand = "0.8.5"
 rong-shared = { path = "../rong-shared" }
+bincode = "1.3.3"
+serde = { version = "1.0.209", features = ["derive"] }

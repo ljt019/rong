@@ -1,6 +1,8 @@
 use super::error;
+use serde::{Deserialize, Serialize};
 
 /*  Network packet wrapper for all messages */
+#[derive(Serialize, Deserialize)]
 pub struct NetworkPacket<T> {
     sequence: u32,
     timestamp: u64,
@@ -45,26 +47,26 @@ pub type ClientNetworkMessage = NetworkPacket<ClientMessage>;
 pub type ServerNetworkMessage = NetworkPacket<ServerMessage>;
 
 /* Core Game enums */
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
 pub enum PlayerId {
     Player1 = 0,
     Player2 = 1,
 }
 
-#[repr(u8)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum EntityId {
     Player(PlayerId),
     Ball,
 }
 
-#[repr(u8)]
+#[derive(Serialize, Deserialize)]
 pub enum Movement {
     Up = 0,
     Down = 1,
     Stop = 2,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub enum GameState {
     WaitingForPlayers,
     GameStarted,
@@ -74,6 +76,7 @@ pub enum GameState {
 /*  Message enums */
 
 // Client-to-Server message options
+#[derive(Serialize, Deserialize)]
 pub enum ClientMessage {
     Connect(PlayerId),               // Player id
     Disconnect(PlayerId),            // Player id
@@ -83,6 +86,7 @@ pub enum ClientMessage {
 }
 
 // Server-to-Client message options
+#[derive(Serialize, Deserialize)]
 pub enum ServerMessage {
     PlayerJoined(PlayerId),         // Player id
     PlayerLeft(PlayerId),           // Player id
@@ -99,6 +103,7 @@ pub struct Ack {
 }
 
 /* Packet structs */
+#[derive(Serialize, Deserialize)]
 pub struct PositionPacket {
     player1: Position,
     player2: Position,
@@ -119,6 +124,7 @@ impl PositionPacket {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct ScorePacket {
     player1: u8,
     player2: u8,
@@ -134,6 +140,7 @@ impl ScorePacket {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct MovementPacket {
     player_id: PlayerId,
     movement: Movement,

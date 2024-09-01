@@ -1,47 +1,70 @@
-/*
-This is the Error module. It contains custom error types for the game.
-
-The module defines:
-- GameError: An enum of possible error types that can occur in the game
-- Result: A type alias for std::result::Result with GameError as the error type
-
-This centralized error handling makes it easier to manage and propagate errors
-throughout the application.
-*/
-
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Serialize, Deserialize)]
 pub enum GameError {
     #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-
+    Io(String), // Changed from std::io::Error to String for serializability
     #[error("UTF-8 error: {0}")]
-    Utf8(#[from] std::str::Utf8Error),
-    // Note: Uncomment the following variants if they become necessary in the future
-    //#[error("Game error: {0}")]
-    //Game(String),
+    Utf8(String), // Changed from std::str::Utf8Error to String
+                  // Uncomment if needed in the future
+                  // #[error("Game error: {0}")]
+                  // Game(String),
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Serialize, Deserialize)]
 pub enum ServerError {
     #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-
+    Io(String),
     #[error("UTF-8 error: {0}")]
-    Utf8(#[from] std::str::Utf8Error),
-
+    Utf8(String),
     #[error("Player not found")]
     PlayerNotFound,
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Serialize, Deserialize)]
 pub enum ClientError {
     #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-
+    Io(String),
     #[error("UTF-8 error: {0}")]
-    Utf8(#[from] std::str::Utf8Error),
+    Utf8(String),
 }
 
 pub type Result<T> = std::result::Result<T, GameError>;
+
+// Helper functions to convert from std errors to our serializable errors
+impl From<std::io::Error> for GameError {
+    fn from(err: std::io::Error) -> Self {
+        GameError::Io(err.to_string())
+    }
+}
+
+impl From<std::str::Utf8Error> for GameError {
+    fn from(err: std::str::Utf8Error) -> Self {
+        GameError::Utf8(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for ServerError {
+    fn from(err: std::io::Error) -> Self {
+        ServerError::Io(err.to_string())
+    }
+}
+
+impl From<std::str::Utf8Error> for ServerError {
+    fn from(err: std::str::Utf8Error) -> Self {
+        ServerError::Utf8(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for ClientError {
+    fn from(err: std::io::Error) -> Self {
+        ClientError::Io(err.to_string())
+    }
+}
+
+impl From<std::str::Utf8Error> for ClientError {
+    fn from(err: std::str::Utf8Error) -> Self {
+        ClientError::Utf8(err.to_string())
+    }
+}
