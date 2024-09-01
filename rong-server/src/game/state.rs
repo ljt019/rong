@@ -137,6 +137,19 @@ impl State {
         &self.scores
     }
 
+    pub fn update_score(&mut self, player_id: PlayerId) {
+        match player_id {
+            PlayerId::Player1 => {
+                let (player1_score, player2_score) = self.scores.get_payload();
+                self.scores = ScorePacket::new(player1_score + 1, player2_score);
+            }
+            PlayerId::Player2 => {
+                let (player1_score, player2_score) = self.scores.get_payload();
+                self.scores = ScorePacket::new(player1_score, player2_score + 1);
+            }
+        }
+    }
+
     pub fn start_game(&mut self) -> Result<()> {
         if self.state == GameState::WaitingForPlayers {
             self.state = GameState::GameStarted;

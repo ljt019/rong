@@ -188,3 +188,51 @@ impl Ball {
         };
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ball_movement() {
+        let mut ball = Ball::new();
+        let initial_position = ball.get_position();
+
+        // Simulate ball movement
+        for _ in 0..10 {
+            ball.update_position(&[]);
+        }
+
+        let new_position = ball.get_position();
+        assert_ne!(initial_position, new_position, "Ball should have moved");
+    }
+
+    #[test]
+    fn test_ball_wall_collision() {
+        let mut ball = Ball::new();
+
+        // Move ball to left wall
+        ball.set_position(ball.radius, 0.5);
+        assert!(
+            ball.collides_with_wall(),
+            "Ball should collide with left wall"
+        );
+        assert_eq!(
+            ball.which_wall(),
+            "left",
+            "Ball should collide with left wall"
+        );
+
+        // Move ball to right wall
+        ball.set_position(1.0 - ball.radius, 0.5);
+        assert!(
+            ball.collides_with_wall(),
+            "Ball should collide with right wall"
+        );
+        assert_eq!(
+            ball.which_wall(),
+            "right",
+            "Ball should collide with right wall"
+        );
+    }
+}

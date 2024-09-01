@@ -71,3 +71,45 @@ impl Player {
         self.velocity = 0.0;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rong_shared::model::PlayerId;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+    #[test]
+    fn test_player_movement() {
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+        let mut player = Player::new(PlayerId::Player1, addr);
+
+        let initial_position = player.get_position();
+        player.move_up();
+        player.update_position(0.1);
+
+        let new_position = player.get_position();
+        assert!(
+            new_position.1 > initial_position.1,
+            "Player should have moved up"
+        );
+    }
+
+    #[test]
+    fn test_player_bounds() {
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+        let mut player = Player::new(PlayerId::Player1, addr);
+
+        // Try to move player out of bounds
+        player.set_position(0.0, -0.1);
+        assert!(
+            player.get_position().1 >= 0.0,
+            "Player should not move below the bottom of the screen"
+        );
+
+        player.set_position(0.0, 1.1);
+        assert!(
+            player.get_position().1 <= 1.0,
+            "Player should not move above the top of the screen"
+        );
+    }
+}
