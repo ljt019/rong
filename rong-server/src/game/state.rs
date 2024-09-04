@@ -2,7 +2,7 @@ use super::ball::Ball;
 use super::player::player_manager::PlayerManager;
 use super::player::Player;
 use rong_shared::error::{GameError, Result};
-use rong_shared::model::{GameState, PlayerId, Position, PositionPacket, ScorePacket};
+use rong_shared::model::{GameState, PlayerId, PositionPacket, ScorePacket};
 use std::time::{Duration, Instant};
 
 pub struct State {
@@ -122,6 +122,10 @@ impl State {
     pub async fn get_positions(&self) -> Result<PositionPacket> {
         let player_positions = self.players.get_positions().await;
         let ball_position = self.ball.get_position();
+
+        if player_positions.len() != 2 {
+            return Err(GameError::Io("Not enough players".to_string()));
+        }
 
         let position_packet =
             PositionPacket::new(player_positions[0].1, player_positions[1].1, ball_position);

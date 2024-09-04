@@ -6,4 +6,4 @@ mod state;
 pub use ball::Ball;
 pub use opponent::Opponent;
 pub use player::Player;
-pub use state::{Game, GameState};
+pub use state::{ClientState, Game};

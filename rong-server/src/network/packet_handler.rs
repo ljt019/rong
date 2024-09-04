@@ -1,7 +1,10 @@
 use crate::game::player::player_manager::PlayerManager;
 use crate::game::state::State;
-use rong_shared::model::{ClientMessage, Movement, NetworkPacket, ServerMessage};
-use std::net::SocketAddr;
+use rong_shared::{
+    error,
+    model::{ClientMessage, Movement, NetworkPacket, PlayerId, ServerMessage},
+};
+use std::net::{SocketAddr, UdpSocket};
 
 pub struct PacketHandler {
     player_manager: PlayerManager,
@@ -16,22 +19,51 @@ impl PacketHandler {
         &mut self,
         packet: NetworkPacket<ClientMessage>,
         addr: SocketAddr,
-        _game_state: &mut State,
+        game_state: &mut State,
     ) -> Option<NetworkPacket<ServerMessage>> {
         self.player_manager.update_last_seen(addr);
 
         match packet.get_payload() {
-            ClientMessage::Connect(player_id) => {
-                self.player_manager
-                    .add_player(*player_id, addr)
-                    .await
-                    .ok()?;
+            ClientMessage::Connect() => {
+                // Figure out which player id to assign
+                let player_id_len = self.player_manager.get_players().len() as u8;
+
+                let player_id = if player_id_len == 0 {
+                    PlayerId::Player1
+                } else if player_id_len == 1 {
+                    PlayerId::Player2
+                } else {
+                    return Some(NetworkPacket::new(
+                        packet.get_sequence(),
+                        packet.get_timestamp(),
+                        ServerMessage::Error(error::ServerError::GameFull),
+                    ));
+                };
+
+                self.player_manager.add_player(player_id, addr).await.ok()?;
+
+                println!("Player connected: {:?}", player_id);
+
+                if player_id == PlayerId::Player2 {
+                    game_state
+                        .start_game()
+                        .map_err(|e| {
+                            println!("Error starting game: {:?}", e);
+                        })
+                        .expect("Failed to start game");
+
+                    println!("Game started");
+                }
 
                 return Some(NetworkPacket::new(
                     packet.get_sequence(),
                     packet.get_timestamp(),
-                    ServerMessage::Ack("Connection successful".to_string()),
+                    ServerMessage::PlayerJoined(player_id),
                 ));
+            }
+            ClientMessage::ConnectionAck() => {
+                println!("Connection acknowledged");
+                return None;
             }
             ClientMessage::Disconnect(player_id) => {
                 self.player_manager.remove_player(*player_id).await.ok()?;
@@ -79,6 +111,15 @@ impl PacketHandler {
                     packet.get_sequence(),
                     packet.get_timestamp(),
                     ServerMessage::Ack("Error received".to_string()),
+                ));
+            }
+            _ => {
+                println!("Unexpected message: {:?}", packet.get_payload());
+
+                return Some(NetworkPacket::new(
+                    packet.get_sequence(),
+                    packet.get_timestamp(),
+                    ServerMessage::Ack("Unexpected message".to_string()),
                 ));
             }
         }

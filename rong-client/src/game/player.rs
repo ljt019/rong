@@ -1,13 +1,13 @@
 use crate::constants::{PLAYER_HEIGHT, PLAYER_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH};
 use macroquad::prelude::{draw_rectangle, Color};
+use rong_shared::model;
 
 const INTERPOLATION_FACTOR: f32 = 0.3;
 
 pub struct Player {
-    pub id: u8,
-    pub x: f32,
-    pub y: f32,
-    pub target_x: f32,
+    pub id: model::PlayerId,
+    pub position: model::Position,
+    pub target_position: model::Position,
     pub velocity: f32,
     pub max_speed: f32,
     pub acceleration: f32,
@@ -16,12 +16,11 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(id: u8) -> Self {
+    pub fn new(id: model::PlayerId) -> Self {
         Player {
             id,
-            x: 0.0,
-            y: 0.0,
-            target_x: 0.0,
+            position: (0.0, 0.0),
+            target_position: (0.0, 0.0),
             velocity: 0.0,
             max_speed: 0.02,
             acceleration: 0.02,
@@ -30,15 +29,14 @@ impl Player {
         }
     }
 
-    pub fn set_position(&mut self, x: f32, y: f32) {
-        self.target_x = x;
-        self.y = y;
+    pub fn set_position(&mut self, position: model::Position) {
+        self.target_position = position;
     }
 
     pub fn update(&mut self, dt: f32) {
-        self.x += (self.target_x - self.x) * INTERPOLATION_FACTOR;
-        self.x += self.velocity * dt;
-        self.x = self.x.clamp(
+        self.position.0 += (self.target_position.0 - self.position.0) * INTERPOLATION_FACTOR;
+        self.position.0 += self.velocity * dt;
+        self.position.0 = self.position.0.clamp(
             PLAYER_WIDTH / SCREEN_WIDTH / 2.0,
             1.0 - PLAYER_WIDTH / SCREEN_WIDTH / 2.0,
         );
@@ -63,8 +61,8 @@ impl Player {
 
     pub fn draw(&self) {
         draw_rectangle(
-            self.x * SCREEN_WIDTH - PLAYER_WIDTH / 2.0,
-            self.y * SCREEN_HEIGHT,
+            self.position.0 * SCREEN_WIDTH - PLAYER_WIDTH / 2.0,
+            self.position.1 * SCREEN_HEIGHT,
             PLAYER_WIDTH,
             PLAYER_HEIGHT,
             self.color,

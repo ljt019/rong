@@ -705,16 +705,21 @@ dependencies = [
 name = "rong"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "crossterm",
  "macroquad",
  "rong-shared",
+ "serde",
+ "tokio",
 ]
 
 [[package]]
 name = "rong-mock-client"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "rand",
+ "rong-shared",
 ]
 
 [[package]]
@@ -736,6 +741,7 @@ dependencies = [
 name = "rong-shared"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "serde",
  "thiserror",
 ]

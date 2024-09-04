@@ -1,34 +1,25 @@
 use rand::Rng;
 use std::net::UdpSocket;
 use std::time::{Duration, Instant};
+use rong_shared::model::{NetworkPacket, ClientMessage, ServerMessage, PlayerId, GameState, Position, MovementPacket, Movement};
+use rong_shared::error::ClientError;
+use bincode;
 
 const SERVER_ADDR: &str = "127.0.0.1:2906";
 const MOVE_INTERVAL: Duration = Duration::from_millis(16); // 60Hz update frequency
 
-// comment just to trigger github action
-
-#[derive(Debug)]
-enum GameState {
-    WaitingForPlayers,
-    GameStarted,
-}
-
 struct PlayerState {
-    id: u8,
-    x: f32,
-    y: f32,
+    id: PlayerId,
+    position: Position,
 }
 
 struct GameData {
     player: PlayerState,
-    opponent_x: f32,
-    opponent_y: f32,
-    ball_x: f32,
-    ball_y: f32,
+    opponent_position: Position,
+    ball_position: Position,
     ball_dx: f32,
     ball_dy: f32,
-    last_ball_x: f32,
-    last_ball_y: f32,
+    last_ball_position: Position,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -37,33 +28,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     socket.connect(SERVER_ADDR)?;
 
     println!("Connected to server at {}", SERVER_ADDR);
-    socket.send(b"CONNECT")?;
-    println!("Sent CONNECT message");
+    send_message(&socket, ClientMessage::Connect())?;
+    println!("Sent Connect message");
 
-    let mut player_id = None;
-    let mut game_state = GameState::WaitingForPlayers;
     let mut game_data = GameData {
-        player: PlayerState { id: 0, x: 0.5, y: 0.0 },
-        opponent_x: 0.5,
-        opponent_y: 1.0,
-        ball_x: 0.5,
-        ball_y: 0.5,
+        player: PlayerState { id: PlayerId::Player1, position: (0.5, 0.0) },
+        opponent_position: (0.5, 1.0),
+        ball_position: (0.5, 0.5),
         ball_dx: 0.0,
         ball_dy: 0.0,
-        last_ball_x: 0.5,
-        last_ball_y: 0.5,
+        last_ball_position: (0.5, 0.5),
     };
+    let mut game_state = GameState::WaitingForPlayers;
     let mut last_move_time = Instant::now();
     let mut last_update_time = Instant::now();
+    let mut sequence_number = 0;
 
     loop {
         // Handle incoming messages
         let mut buf = [0; 1024];
         match socket.recv_from(&mut buf) {
             Ok((amt, _)) => {
-                let received = std::str::from_utf8(&buf[..amt])?;
-                println!("Received: {}", received);
-                handle_server_message(received, &mut player_id, &mut game_state, &mut game_data);
+                let packet: NetworkPacket<ServerMessage> = bincode::deserialize(&buf[..amt])?;
+                println!("Received: {:?}", packet.get_payload());
+                handle_server_message(packet.get_payload(), &mut game_state, &mut game_data);
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
             Err(e) => eprintln!("IO error: {}", e),
@@ -73,17 +61,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let now = Instant::now();
         let dt = now.duration_since(last_update_time).as_secs_f32();
         if dt > 0.0 {
-            game_data.ball_dx = (game_data.ball_x - game_data.last_ball_x) / dt;
-            game_data.ball_dy = (game_data.ball_y - game_data.last_ball_y) / dt;
-            game_data.last_ball_x = game_data.ball_x;
-            game_data.last_ball_y = game_data.ball_y;
+            game_data.ball_dx = (game_data.ball_position.0 - game_data.last_ball_position.0) / dt;
+            game_data.ball_dy = (game_data.ball_position.1 - game_data.last_ball_position.1) / dt;
+            game_data.last_ball_position = game_data.ball_position;
             last_update_time = now;
         }
 
         // Send periodic moves if the game has started
-        if let GameState::GameStarted = game_state {
-            if player_id.is_some() && last_move_time.elapsed() >= MOVE_INTERVAL {
-                send_smart_move(&socket, &game_data)?;
+        if game_state == GameState::GameStarted {
+            if last_move_time.elapsed() >= MOVE_INTERVAL {
+                send_smart_move(&socket, &game_data, &mut sequence_number)?;
                 last_move_time = Instant::now();
             }
         }
@@ -91,82 +78,94 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn handle_server_message(
-    msg: &str,
-    player_id: &mut Option<u8>,
+    msg: &ServerMessage,
     game_state: &mut GameState,
     game_data: &mut GameData,
 ) {
     match msg {
-        "PLAYER 1" => {
-            *player_id = Some(1);
-            game_data.player.id = 1;
-            game_data.player.y = 0.9; // Assuming player 1 is at the bottom
-            println!("Assigned as Player 1");
+        ServerMessage::PlayerJoined(id) => {
+            game_data.player.id = *id;
+            game_data.player.position.1 = if *id == PlayerId::Player1 { 0.9 } else { 0.1 };
+            println!("Assigned as {:?}", id);
         }
-        "PLAYER 2" => {
-            *player_id = Some(2);
-            game_data.player.id = 2;
-            game_data.player.y = 0.1; // Assuming player 2 is at the top
-            println!("Assigned as Player 2");
+        ServerMessage::GameStateChange(new_state) => {
+            *game_state = *new_state;
+            println!("Game state changed to {:?}", new_state);
         }
-        "GAME STARTED" => {
-            *game_state = GameState::GameStarted;
-            println!("Game started");
-        }
-        _ if msg.starts_with("PLAYER") => {
-            // Game state update
-            let parts: Vec<&str> = msg.split_whitespace().collect();
-            if parts.len() >= 9 {
-                game_data.player.x = parts[1].parse().unwrap_or(game_data.player.x);
-                game_data.player.y = parts[2].parse().unwrap_or(game_data.player.y);
-                game_data.opponent_x = parts[4].parse().unwrap_or(game_data.opponent_x);
-                game_data.opponent_y = parts[5].parse().unwrap_or(game_data.opponent_y);
-                game_data.ball_x = parts[7].parse().unwrap_or(game_data.ball_x);
-                game_data.ball_y = parts[8].parse().unwrap_or(game_data.ball_y);
-                println!(
-                    "Updated game state: Player at ({}, {}), Opponent at ({}, {}), Ball at ({}, {})",
-                    game_data.player.x, game_data.player.y, 
-                    game_data.opponent_x, game_data.opponent_y, 
-                    game_data.ball_x, game_data.ball_y
-                );
+        ServerMessage::PositionUpdate(positions) => {
+            let (player1, player2, ball) = positions.get_payload();
+            if game_data.player.id == PlayerId::Player1 {
+                game_data.player.position = *player1;
+                game_data.opponent_position = *player2;
+            } else {
+                game_data.player.position = *player2;
+                game_data.opponent_position = *player1;
             }
+            game_data.ball_position = *ball;
+            println!(
+                "Updated game state: Player at ({:.2}, {:.2}), Opponent at ({:.2}, {:.2}), Ball at ({:.2}, {:.2})",
+                game_data.player.position.0, game_data.player.position.1, 
+                game_data.opponent_position.0, game_data.opponent_position.1, 
+                game_data.ball_position.0, game_data.ball_position.1
+            );
+        }
+        ServerMessage::ScoreUpdate(scores) => {
+            let (score1, score2) = scores.get_payload();
+            println!("Score updated: {} - {}", score1, score2);
+        }
+        ServerMessage::Ack(msg) => {
+            println!("Server acknowledgement: {}", msg);
+        }
+        ServerMessage::Error(error) => {
+            eprintln!("Server error: {:?}", error);
         }
         _ => {
-            println!("Unhandled message: {}", msg);
+            println!("Unhandled message: {:?}", msg);
         }
     }
+}
+
+fn send_message(socket: &UdpSocket, message: ClientMessage) -> Result<(), ClientError> {
+    let packet = NetworkPacket::new(0, 0, message); // TODO: Implement proper sequence number and timestamp
+    let serialized = bincode::serialize(&packet)?;
+    socket.send(&serialized)?;
+    Ok(())
 }
 
 fn send_smart_move(
     socket: &UdpSocket,
     game_data: &GameData,
-) -> std::io::Result<()> {
+    sequence_number: &mut u32,
+) -> Result<(), ClientError> {
     let target_x = predict_ball_position(game_data);
-    let distance = target_x - game_data.player.x;
+    let distance = target_x - game_data.player.position.0;
     
     let movement = if distance.abs() < 0.01 {
-        // If very close to the target, don't move
-        'x'
+        Movement::Stop
     } else if distance > 0.0 {
-        'd' // Move right
+        Movement::Up
     } else {
-        'a' // Move left
+        Movement::Down
     };
 
-    let message = format!("{} {}", game_data.player.id, movement);
-    socket.send(message.as_bytes())?;
-    println!("Sent: {}", message);
+    let movement_packet = MovementPacket::new(game_data.player.id, movement);
+    *sequence_number += 1;
+    let message = ClientMessage::MovementCommand(movement_packet);
+    let packet = NetworkPacket::new(*sequence_number, 0, message); // TODO: Implement proper timestamp
+    let serialized = bincode::serialize(&packet)?;
+    socket.send(&serialized)?;
+    println!("Sent: {:?}", movement);
     Ok(())
 }
 
 fn predict_ball_position(game_data: &GameData) -> f32 {
     let time_to_reach = if game_data.ball_dy != 0.0 {
-        (game_data.player.y - game_data.ball_y).abs() / game_data.ball_dy.abs()
+        (game_data.player.position.1 - game_data.ball_position.1).abs() / game_data.ball_dy.abs()
     } else {
         0.0 // Avoid division by zero
     };
     
-    let mut predicted_x = game_data.ball_x + game_data.ball_dx * time_to_reach;
+    let mut predicted_x = game_data.ball_position.0 + game_data.ball_dx * time_to_reach;
     
     // Handle bounces off side walls
     while predicted_x < 0.0 || predicted_x > 1.0 {

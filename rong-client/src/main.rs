@@ -4,11 +4,11 @@ mod network;
 mod ui;
 
 use constants::*;
-use game::{Ball, Game, GameState, Opponent, Player};
-use network::Server;
-
+use game::{Ball, Game, Opponent, Player};
 use macroquad::audio::{load_sound_from_bytes, play_sound, stop_sound, PlaySoundParams};
 use macroquad::prelude::*;
+use network::Server;
+use rong_shared::model::PlayerId;
 
 const BALL_COLLISION_SOUND_BYTES: &[u8] = include_bytes!("../assets/wii_game_disc_case_close.wav");
 const SCORE_SOUND_BYTES: &[u8] = include_bytes!("../assets/coin_collect_eleven.wav");
@@ -20,16 +20,16 @@ async fn main() {
     let ball_collision_sound = load_sound_from_bytes(BALL_COLLISION_SOUND_BYTES)
         .await
         .unwrap();
-
     let score_sound = load_sound_from_bytes(SCORE_SOUND_BYTES).await.unwrap();
-
     let menu_music = load_sound_from_bytes(MENU_MUSIC_BYTES).await.unwrap();
 
     // Set up structs for game objects
-    let player = Player::new(0);
+    let player = Player::new(PlayerId::Player1);
     let opponent = Opponent::new();
     let ball = Ball::new();
-    let server = Server::new();
+    let server = Server::new()
+        .map_err(|e| panic!("Failed to create server: {:?}", e))
+        .unwrap();
 
     // Set up game with the created objects
     let mut game = Game::new(
@@ -47,11 +47,15 @@ async fn main() {
     loop {
         let dt = get_frame_time();
 
-        game.update_state();
+        if let Err(e) = game.update_state() {
+            eprintln!("Error updating game state: {:?}", e);
+            // Handle the error appropriately (e.g., disconnect, show error message)
+        }
+
         game.player.update(dt);
 
-        match game.game_state {
-            GameState::GameStarted => {
+        match game.client_state {
+            game::ClientState::Playing => {
                 // Stop menu music when the game starts
                 if menu_music_playing {
                     stop_sound(&menu_music);
@@ -59,12 +63,16 @@ async fn main() {
                 }
 
                 if is_key_down(KeyCode::Left) {
-                    game.move_player_left();
+                    if let Err(e) = game.move_player_left() {
+                        eprintln!("Error moving player left: {:?}", e);
+                    }
                 } else if is_key_down(KeyCode::Right) {
-                    game.move_player_right();
+                    if let Err(e) = game.move_player_right() {
+                        eprintln!("Error moving player right: {:?}", e);
+                    }
                 }
             }
-            GameState::TitleScreen | GameState::WaitingForPlayers => {
+            game::ClientState::TitleScreen | game::ClientState::WaitingForPlayers => {
                 // Ensure menu music is playing
                 if !menu_music_playing {
                     play_sound(
@@ -76,6 +84,9 @@ async fn main() {
                     );
                     menu_music_playing = true;
                 }
+            }
+            game::ClientState::GameOver => {
+                // Handle game over state if needed
             }
         }
 
@@ -93,7 +104,6 @@ async fn main() {
         stop_sound(&menu_music);
     }
 }
-
 /*
 
 Project File Structure:

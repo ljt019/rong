@@ -1,15 +1,24 @@
 use super::{Ball, Opponent, Player};
+use crate::constants::{BALL_RADIUS, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::network::Server;
 use crate::ui::{PixelText, TitleBall, TitleText};
 use macroquad::audio::{play_sound, PlaySoundParams, Sound};
 use macroquad::prelude::*;
-use std::str::FromStr;
-use std::time::Instant;
+use rong_shared::error::ClientError;
+use rong_shared::model::{GameState, Movement, PlayerId, Position, ServerMessage};
 
-pub enum GameState {
+#[derive(PartialEq, Clone, Copy)]
+pub enum ClientState {
     TitleScreen,
     WaitingForPlayers,
-    GameStarted,
+    Playing,
+    GameOver,
+}
+
+#[derive(PartialEq, Clone, Copy)]
+enum TitleOption {
+    JoinGame,
+    Exit,
 }
 
 pub struct Game {
@@ -17,12 +26,12 @@ pub struct Game {
     opponent: Opponent,
     ball: Ball,
     pub server: Server,
-    pub game_state: GameState,
-    last_received_message: String,
+    pub client_state: ClientState,
+    server_game_state: GameState,
     score: (u8, u8),
     collision_sound: Sound,
     score_sound: Sound,
-    last_ball_position: (f32, f32),
+    last_ball_position: Position,
     last_ball_direction: (f32, f32),
     title_text: TitleText,
     join_game_text: PixelText,
@@ -31,12 +40,6 @@ pub struct Game {
     title_ball: TitleBall,
     debug_mode: bool,
     title_bounds: [Rect; 3],
-}
-
-#[derive(PartialEq, Clone, Copy)]
-enum TitleOption {
-    JoinGame,
-    Exit,
 }
 
 impl Game {
@@ -48,26 +51,23 @@ impl Game {
         collision_sound: Sound,
         score_sound: Sound,
     ) -> Self {
-        let ball_x = ball.x;
-        let ball_y = ball.y;
-
-        let title_text = TitleText::new("RONG", screen_width() / 2.0, screen_height() / 3.0);
+        let title_text = TitleText::new("RONG", SCREEN_WIDTH / 2.0, SCREEN_HEIGHT / 3.0);
 
         let menu_color = Color::new(0.5, 0.25, 0.0, 1.0);
         let highlight_color = Color::new(1.0, 0.5, 0.0, 1.0);
 
         let join_game_text = PixelText::new(
             "JOIN GAME",
-            screen_width() / 2.0 + -54.0,
-            screen_height() / 2.0 + 50.0 + 5.0,
+            SCREEN_WIDTH / 2.0 - 54.0,
+            SCREEN_HEIGHT / 2.0 + 55.0,
             1.7,
             menu_color,
             highlight_color,
         );
         let exit_text = PixelText::new(
             "EXIT",
-            screen_width() / 2.0 + -29.0,
-            screen_height() / 2.0 + 100.0 + -15.0,
+            SCREEN_WIDTH / 2.0 - 29.0,
+            SCREEN_HEIGHT / 2.0 + 85.0,
             1.7,
             menu_color,
             highlight_color,
@@ -75,20 +75,20 @@ impl Game {
 
         let title_bounds = [
             Rect::new(
-                screen_width() / 2.0 - 94.0,
-                screen_height() / 3.0 + 74.0,
+                SCREEN_WIDTH / 2.0 - 94.0,
+                SCREEN_HEIGHT / 3.0 + 74.0,
                 174.0,
                 50.0,
             ),
             Rect::new(
-                screen_width() / 2.0 - 54.0,
-                screen_height() / 2.0 + 50.0,
+                SCREEN_WIDTH / 2.0 - 54.0,
+                SCREEN_HEIGHT / 2.0 + 50.0,
                 91.0,
                 20.0,
             ),
             Rect::new(
-                screen_width() / 2.0 - 30.0,
-                screen_height() / 2.0 + 85.0,
+                SCREEN_WIDTH / 2.0 - 30.0,
+                SCREEN_HEIGHT / 2.0 + 85.0,
                 40.0,
                 13.0,
             ),
@@ -99,26 +99,26 @@ impl Game {
             player,
             opponent,
             ball,
-            game_state: GameState::TitleScreen,
-            last_received_message: String::new(),
+            client_state: ClientState::TitleScreen,
+            server_game_state: GameState::WaitingForPlayers,
             score: (0, 0),
             collision_sound,
             score_sound,
-            last_ball_position: (ball_x, ball_y),
+            last_ball_position: (0.5, 0.5),
             last_ball_direction: (0.0, 0.0),
             title_text,
             join_game_text,
             exit_text,
             selected_option: TitleOption::JoinGame,
-            title_ball: TitleBall::new(screen_width() / 2.0, screen_height() / 2.0),
-            debug_mode: true,
+            title_ball: TitleBall::new(SCREEN_WIDTH / 2.0, SCREEN_HEIGHT / 2.0),
+            debug_mode: false,
             title_bounds,
         }
     }
 
-    pub fn update_state(&mut self) {
-        match self.game_state {
-            GameState::TitleScreen => {
+    pub fn update_state(&mut self) -> Result<(), ClientError> {
+        match self.client_state {
+            ClientState::TitleScreen => {
                 if is_key_pressed(KeyCode::Up) || is_key_pressed(KeyCode::Down) {
                     self.selected_option = match self.selected_option {
                         TitleOption::JoinGame => TitleOption::Exit,
@@ -129,8 +129,8 @@ impl Game {
                 if is_key_pressed(KeyCode::Enter) {
                     match self.selected_option {
                         TitleOption::JoinGame => {
-                            self.server.send_connect();
-                            self.game_state = GameState::WaitingForPlayers;
+                            self.server.send_connect()?;
+                            self.client_state = ClientState::WaitingForPlayers;
                         }
                         TitleOption::Exit => {
                             std::process::exit(0);
@@ -138,100 +138,109 @@ impl Game {
                     }
                 }
             }
-            GameState::WaitingForPlayers | GameState::GameStarted => {
-                self.handle_server_messages();
+            ClientState::WaitingForPlayers => {
+                // No action needed, just wait for server to start the game
+            }
+            ClientState::Playing => {
+                if is_key_down(KeyCode::Left) {
+                    self.server.send_movement(Movement::Down)?;
+                } else if is_key_down(KeyCode::Right) {
+                    self.server.send_movement(Movement::Up)?;
+                } else {
+                    self.server.send_movement(Movement::Stop)?;
+                }
+            }
+            ClientState::GameOver => {
+                if is_key_pressed(KeyCode::Enter) {
+                    self.reset_game()?;
+                }
             }
         }
+
+        self.handle_server_messages()?;
+        Ok(())
     }
 
-    fn handle_server_messages(&mut self) {
-        match self.server.receive() {
-            Ok(Some(received)) => {
-                if received != self.last_received_message {
-                    println!("Received: {}", received);
-                    self.last_received_message = received.clone();
-                }
-
-                if received == "PLAYER 1" || received == "PLAYER 2" {
-                    if let Some(id) = received.split_whitespace().nth(1) {
-                        if let Ok(parsed_id) = id.parse() {
-                            self.player.id = parsed_id;
-                            println!("Assigned as Player {}", self.player.id);
-                        }
+    fn handle_server_messages(&mut self) -> Result<(), ClientError> {
+        while let Some(message) = self.server.receive()? {
+            match message {
+                ServerMessage::GameStateChange(new_state) => {
+                    self.server_game_state = new_state;
+                    match new_state {
+                        GameState::GameStarted => self.client_state = ClientState::Playing,
+                        GameState::GameOver => self.client_state = ClientState::GameOver,
+                        _ => {}
                     }
-                } else if received == "GAME STARTED" {
-                    self.game_state = GameState::GameStarted;
-                    println!("Game started!");
-                } else if received.starts_with("PLAYER ") {
-                    self.update_game_state(received);
+                }
+                ServerMessage::PositionUpdate(positions) => {
+                    let (player1, player2, ball) = positions.get_payload();
+                    if self.player.id == PlayerId::Player1 {
+                        self.player.set_position((player1.0, player1.1));
+                        self.opponent.set_position((player2.0, player2.1));
+                    } else {
+                        self.player.set_position((player2.0, player2.1));
+                        self.opponent.set_position((player2.0, player2.1));
+                    }
+                    self.check_collision(*ball);
+                    self.ball.set_position((ball.0, ball.1));
+                }
+                ServerMessage::ScoreUpdate(scores) => {
+                    let (score1, score2) = scores.get_payload();
+                    if self.score != (score1, score2) {
+                        self.play_score_sound();
+                        self.score = (score1, score2);
+                    }
+                }
+                ServerMessage::PlayerJoined(_) | ServerMessage::PlayerLeft(_) => {
+                    // Update UI to show player connection status if needed
+                }
+                ServerMessage::Ack(_) => {
+                    // Handle acknowledgement if needed
+                }
+                ServerMessage::Error(error) => {
+                    println!("Server error: {:?}", error);
+                    // Handle server error, possibly disconnecting or showing an error message
                 }
             }
-            Ok(None) => {}
-            Err(e) => {
-                println!("Error receiving: {}", e);
-            }
         }
+        Ok(())
     }
 
-    fn update_game_state(&mut self, received: String) {
-        let parts: Vec<&str> = received.split_whitespace().collect();
-        if parts.len() >= 12 {
-            let new_player_x = f32::from_str(parts[1]).unwrap_or(0.0);
-            let new_player_y = f32::from_str(parts[2]).unwrap_or(0.0);
-            let new_opponent_x = f32::from_str(parts[4]).unwrap_or(0.0);
-            let new_opponent_y = f32::from_str(parts[5]).unwrap_or(0.0);
-            let new_ball_x = f32::from_str(parts[7]).unwrap_or(0.0);
-            let new_ball_y = f32::from_str(parts[8]).unwrap_or(0.0);
-            let new_score_1 = u8::from_str(parts[10]).unwrap_or(0);
-            let new_score_2 = u8::from_str(parts[11]).unwrap_or(0);
-
-            self.player.set_position(new_player_x, new_player_y);
-            self.opponent.set_position(new_opponent_x, new_opponent_y);
-
-            self.check_collision(new_ball_x, new_ball_y);
-
-            self.ball.set_position(new_ball_x, new_ball_y);
-
-            if self.score != (new_score_1, new_score_2) {
-                self.play_score_sound();
-                self.score = (new_score_1, new_score_2);
-            }
-
-            self.game_state = GameState::GameStarted;
-        }
+    pub fn move_player_left(&mut self) -> Result<(), ClientError> {
+        self.server.send_movement(Movement::Down)?;
+        Ok(())
     }
 
-    fn check_collision(&mut self, new_ball_x: f32, new_ball_y: f32) {
+    pub fn move_player_right(&mut self) -> Result<(), ClientError> {
+        self.server.send_movement(Movement::Up)?;
+        Ok(())
+    }
+
+    fn check_collision(&mut self, new_ball_pos: Position) {
         let (old_x, old_y) = self.last_ball_position;
-        let new_direction = (new_ball_x - old_x, new_ball_y - old_y);
+        let new_direction = (new_ball_pos.0 - old_x, new_ball_pos.1 - old_y);
 
         if (new_direction.0 * self.last_ball_direction.0 < 0.0)
             || (new_direction.1 * self.last_ball_direction.1 < 0.0)
         {
-            println!(
-                "Direction change detected! Old: {:?}, New: {:?}",
-                self.last_ball_direction, new_direction
-            );
-
-            if !self.is_top_bottom_collision(old_y, new_ball_y) {
+            if !self.is_top_bottom_collision(old_y, new_ball_pos.1) {
                 self.play_collision_sound();
             }
         }
 
-        self.last_ball_position = (new_ball_x, new_ball_y);
+        self.last_ball_position = new_ball_pos;
         self.last_ball_direction = new_direction;
     }
 
     fn is_top_bottom_collision(&self, old_y: f32, new_y: f32) -> bool {
-        let top_boundary = crate::constants::BALL_RADIUS / crate::constants::SCREEN_HEIGHT;
-        let bottom_boundary = 1.0 - crate::constants::BALL_RADIUS / crate::constants::SCREEN_HEIGHT;
+        let top_boundary = BALL_RADIUS / SCREEN_HEIGHT;
+        let bottom_boundary = 1.0 - BALL_RADIUS / SCREEN_HEIGHT;
 
         (old_y > top_boundary && new_y <= top_boundary)
             || (old_y < bottom_boundary && new_y >= bottom_boundary)
     }
 
     fn play_collision_sound(&self) {
-        println!("Playing collision sound!");
         play_sound(
             &self.collision_sound,
             PlaySoundParams {
@@ -242,7 +251,6 @@ impl Game {
     }
 
     fn play_score_sound(&self) {
-        println!("Playing score sound!");
         play_sound(
             &self.score_sound,
             PlaySoundParams {
@@ -252,15 +260,11 @@ impl Game {
         );
     }
 
-    pub fn get_score(&self) -> (u8, u8) {
-        self.score
-    }
-
     pub fn draw_frame(&mut self) {
         clear_background(BLACK);
 
-        match self.game_state {
-            GameState::TitleScreen => {
+        match self.client_state {
+            ClientState::TitleScreen => {
                 self.title_text.update(get_frame_time());
                 self.title_text.draw();
 
@@ -272,49 +276,66 @@ impl Game {
                 self.exit_text
                     .draw(self.selected_option == TitleOption::Exit);
 
-                // draw bounding boxes on menu text
-                //if self.debug_mode {
-                //    for bound in self.title_bounds.iter() {
-                //        draw_rectangle_lines(bound.x, bound.y, bound.w, bound.h, 2.0, LIME);
-                //    }
-                //}
+                if self.debug_mode {
+                    for bound in self.title_bounds.iter() {
+                        draw_rectangle_lines(bound.x, bound.y, bound.w, bound.h, 2.0, LIME);
+                    }
+                }
             }
-            GameState::WaitingForPlayers => {
+            ClientState::WaitingForPlayers => {
                 draw_text(
                     "Waiting for players...",
                     10.0,
-                    screen_height() - 30.0,
+                    SCREEN_HEIGHT - 30.0,
                     20.0,
                     WHITE,
                 );
             }
-            GameState::GameStarted => {
+            ClientState::Playing | ClientState::GameOver => {
                 self.player.draw();
                 self.opponent.draw();
                 self.ball.draw();
 
-                for x in (0..(crate::constants::SCREEN_WIDTH as i32)).step_by(20) {
+                for x in (0..(SCREEN_WIDTH as i32)).step_by(20) {
                     draw_line(x as f32, 300.0, (x + 10) as f32, 300.0, 1.0, WHITE);
                 }
 
                 draw_text(
                     &format!("Score: {} - {}", self.score.0, self.score.1),
                     10.0,
-                    10.0,
+                    30.0,
                     20.0,
                     WHITE,
                 );
+
+                if self.client_state == ClientState::GameOver {
+                    let game_over_text = "Game Over! Press Enter to play again";
+                    let text_dimensions = measure_text(game_over_text, None, 30, 1.0);
+                    draw_text(
+                        game_over_text,
+                        (SCREEN_WIDTH - text_dimensions.width) / 2.0,
+                        SCREEN_HEIGHT / 2.0,
+                        30.0,
+                        WHITE,
+                    );
+                }
             }
+        }
+
+        if self.debug_mode {
+            draw_text(&format!("FPS: {}", get_fps()), 10.0, 10.0, 20.0, GREEN);
         }
     }
 
-    pub fn move_player_left(&mut self) {
-        self.player.move_left();
-        self.server.send_key_press(self.player.id.to_string(), "a");
+    fn reset_game(&mut self) -> Result<(), ClientError> {
+        self.score = (0, 0);
+        self.client_state = ClientState::WaitingForPlayers;
+        self.server_game_state = GameState::WaitingForPlayers;
+        self.server.send_connect()?;
+        Ok(())
     }
 
-    pub fn move_player_right(&mut self) {
-        self.player.move_right();
-        self.server.send_key_press(self.player.id.to_string(), "d");
+    pub fn toggle_debug_mode(&mut self) {
+        self.debug_mode = !self.debug_mode;
     }
 }

@@ -59,7 +59,7 @@ pub enum EntityId {
     Ball,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub enum Movement {
     Up = 0,
     Down = 1,
@@ -76,17 +76,18 @@ pub enum GameState {
 /*  Message enums */
 
 // Client-to-Server message options
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum ClientMessage {
-    Connect(PlayerId),               // Player id
+    Connect(),                       // Player id
     Disconnect(PlayerId),            // Player id
     MovementCommand(MovementPacket), // Player id, Movement Key
+    ConnectionAck(),                 // Acknowledgement
     Ack(String),                     // Acknowledgement
     Error(error::ClientError),
 }
 
 // Server-to-Client message options
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ServerMessage {
     PlayerJoined(PlayerId),         // Player id
     PlayerLeft(PlayerId),           // Player id
@@ -103,7 +104,7 @@ pub struct Ack {
 }
 
 /* Packet structs */
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PositionPacket {
     player1: Position,
     player2: Position,
@@ -124,7 +125,7 @@ impl PositionPacket {
     }
 }
 
-#[derive(Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub struct ScorePacket {
     player1: u8,
     player2: u8,
@@ -140,7 +141,7 @@ impl ScorePacket {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MovementPacket {
     player_id: PlayerId,
     movement: Movement,

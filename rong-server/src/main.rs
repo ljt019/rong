@@ -11,7 +11,7 @@ use crate::game::state::State;
 use crate::matchmaking::queue::MatchmakingSystem;
 use crate::network::connection::ConnectionManager;
 use crate::network::packet_handler::PacketHandler;
-use rong_shared::model::{NetworkPacket, ServerMessage};
+use rong_shared::model::{self, NetworkPacket, ServerMessage};
 
 const SOCKET_ADDR: &str = "0.0.0.0:2906";
 
@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let player_manager = game::player::player_manager::PlayerManager::new(Arc::clone(&socket));
 
     // Initialize the game state
-    let mut game_state = State::new(player_manager);
+    let mut game_state = State::new(player_manager.clone());
 
     // Initialize the matchmaking system
     let mut matchmaking = MatchmakingSystem::new(Duration::from_secs(60));
@@ -75,7 +75,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Broadcast game state to all players
                 let state_update = ServerMessage::GameStateChange(game_state.get_state());
-                let position_update = match game_state.get_positions().await {
+
+
+                let state_packet = NetworkPacket::new(0, 0, state_update);
+
+                if let Err(e) = connection_manager.broadcast(&state_packet).await {
+                    eprintln!("Failed to broadcast state update: {}", e);
+                }
+
+                // If game started
+                if model::GameState::GameStarted == game_state.get_state() && player_manager.get_players().len() < 2 {
+
+                                let position_update = match game_state.get_positions().await {
                     Ok(positions) => ServerMessage::PositionUpdate(positions),
                     Err(e) => {
                         eprintln!("Failed to get positions: {}", e);
@@ -84,18 +95,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
                 let score_update = ServerMessage::ScoreUpdate(*game_state.get_scores());
 
-                let state_packet = NetworkPacket::new(0, 0, state_update);
                 let position_packet = NetworkPacket::new(0, 0, position_update);
                 let score_packet = NetworkPacket::new(0, 0, score_update);
 
-                if let Err(e) = connection_manager.broadcast(&state_packet).await {
-                    eprintln!("Failed to broadcast state update: {}", e);
-                }
                 if let Err(e) = connection_manager.broadcast(&position_packet).await {
                     eprintln!("Failed to broadcast position update: {}", e);
                 }
                 if let Err(e) = connection_manager.broadcast(&score_packet).await {
                     eprintln!("Failed to broadcast score update: {}", e);
+                }
                 }
             }
         }

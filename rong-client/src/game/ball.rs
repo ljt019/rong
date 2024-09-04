@@ -1,25 +1,27 @@
 use crate::constants::{BALL_RADIUS, SCREEN_HEIGHT, SCREEN_WIDTH};
 use macroquad::prelude::{draw_circle, WHITE};
+use rong_shared::model;
 
 pub struct Ball {
-    pub x: f32,
-    pub y: f32,
+    position: model::Position,
 }
 
 impl Ball {
     pub fn new() -> Self {
-        Ball { x: 0.5, y: 0.5 }
+        Ball {
+            position: (0.5, 0.5),
+        }
     }
 
-    pub fn set_position(&mut self, x: f32, y: f32) {
-        self.x = x;
-        self.y = y;
+    pub fn set_position(&mut self, position: model::Position) {
+        self.position.0 = position.0;
+        self.position.1 = position.1;
     }
 
     pub fn draw(&self) {
         draw_circle(
-            self.x * SCREEN_WIDTH,
-            self.y * SCREEN_HEIGHT,
+            self.position.0 * SCREEN_WIDTH,
+            self.position.1 * SCREEN_HEIGHT,
             BALL_RADIUS,
             WHITE,
         );
