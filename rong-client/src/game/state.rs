@@ -2,6 +2,7 @@ use super::{Ball, Opponent, Player};
 use crate::constants::{BALL_RADIUS, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::network::Server;
 use crate::ui::{PixelText, TitleBall, TitleText};
+use log::{error, info};
 use macroquad::audio::{play_sound, PlaySoundParams, Sound};
 use macroquad::prelude::*;
 use rong_shared::error::ClientError;
@@ -129,17 +130,22 @@ impl Game {
                 if is_key_pressed(KeyCode::Enter) {
                     match self.selected_option {
                         TitleOption::JoinGame => {
+                            info!("Player selected Join Game");
                             self.server.send_connect()?;
                             self.client_state = ClientState::WaitingForPlayers;
                         }
                         TitleOption::Exit => {
+                            info!("Player selected Exit");
                             std::process::exit(0);
                         }
                     }
                 }
             }
             ClientState::WaitingForPlayers => {
-                // No action needed, just wait for server to start the game
+                info!(
+                    "Waiting for players... Current player count: {}",
+                    self.get_player_count()
+                );
             }
             ClientState::Playing => {
                 if is_key_down(KeyCode::Left) {
@@ -152,6 +158,7 @@ impl Game {
             }
             ClientState::GameOver => {
                 if is_key_pressed(KeyCode::Enter) {
+                    info!("Player pressed Enter to restart the game");
                     self.reset_game()?;
                 }
             }
@@ -163,17 +170,26 @@ impl Game {
 
     fn handle_server_messages(&mut self) -> Result<(), ClientError> {
         while let Some(message) = self.server.receive()? {
+            info!("Received message from server: {:?}", message);
             match message {
                 ServerMessage::GameStateChange(new_state) => {
+                    info!("Game state changed to {:?}", new_state);
                     self.server_game_state = new_state;
                     match new_state {
-                        GameState::GameStarted => self.client_state = ClientState::Playing,
+                        GameState::GameStarted => {
+                            info!("Game started!");
+                            self.client_state = ClientState::Playing;
+                        }
                         GameState::GameOver => self.client_state = ClientState::GameOver,
                         _ => {}
                     }
                 }
                 ServerMessage::PositionUpdate(positions) => {
                     let (player1, player2, ball) = positions.get_payload();
+                    info!(
+                        "Position update: Player1 {:?}, Player2 {:?}, Ball {:?}",
+                        player1, player2, ball
+                    );
                     if self.player.id == PlayerId::Player1 {
                         self.player.set_position((player1.0, player1.1));
                         self.opponent.set_position((player2.0, player2.1));
@@ -186,20 +202,25 @@ impl Game {
                 }
                 ServerMessage::ScoreUpdate(scores) => {
                     let (score1, score2) = scores.get_payload();
+                    info!("Score update: {} - {}", score1, score2);
                     if self.score != (score1, score2) {
                         self.play_score_sound();
                         self.score = (score1, score2);
                     }
                 }
-                ServerMessage::PlayerJoined(_) | ServerMessage::PlayerLeft(_) => {
+                ServerMessage::PlayerJoined(player_id) => {
+                    info!("Player joined: {:?}", player_id);
                     // Update UI to show player connection status if needed
                 }
-                ServerMessage::Ack(_) => {
-                    // Handle acknowledgement if needed
+                ServerMessage::PlayerLeft(player_id) => {
+                    info!("Player left: {:?}", player_id);
+                    // Update UI to show player connection status if needed
+                }
+                ServerMessage::Ack(msg) => {
+                    info!("Server acknowledgement: {}", msg);
                 }
                 ServerMessage::Error(error) => {
-                    println!("Server error: {:?}", error);
-                    // Handle server error, possibly disconnecting or showing an error message
+                    error!("Server error: {:?}", error);
                 }
             }
         }
@@ -328,6 +349,7 @@ impl Game {
     }
 
     fn reset_game(&mut self) -> Result<(), ClientError> {
+        info!("Resetting game state");
         self.score = (0, 0);
         self.client_state = ClientState::WaitingForPlayers;
         self.server_game_state = GameState::WaitingForPlayers;
@@ -337,5 +359,11 @@ impl Game {
 
     pub fn toggle_debug_mode(&mut self) {
         self.debug_mode = !self.debug_mode;
+        info!("Debug mode toggled: {}", self.debug_mode);
+    }
+
+    fn get_player_count(&self) -> usize {
+        // This is a placeholder. You might need to implement a way to get the actual player count from the server.
+        2
     }
 }

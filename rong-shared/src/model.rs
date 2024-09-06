@@ -2,7 +2,7 @@ use super::error;
 use serde::{Deserialize, Serialize};
 
 /*  Network packet wrapper for all messages */
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub struct NetworkPacket<T> {
     sequence: u32,
     timestamp: u64,
@@ -76,7 +76,7 @@ pub enum GameState {
 /*  Message enums */
 
 // Client-to-Server message options
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ClientMessage {
     Connect(),                       // Player id
     Disconnect(PlayerId),            // Player id
@@ -141,7 +141,7 @@ impl ScorePacket {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub struct MovementPacket {
     player_id: PlayerId,
     movement: Movement,

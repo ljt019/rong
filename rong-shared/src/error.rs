@@ -25,7 +25,7 @@ pub enum ServerError {
     GameFull,
 }
 
-#[derive(Error, Debug, Serialize, Deserialize)]
+#[derive(Error, Debug, Serialize, Deserialize, Clone)]
 pub enum ClientError {
     #[error("IO error: {0}")]
     Io(String),

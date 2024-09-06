@@ -10,3 +10,4 @@ macroquad = {version = "0.4.8", features = ["audio"]}
 serde = { version = "1.0.209", features = ["derive"] }
 rong-shared = { path = "../rong-shared" }
 tokio = { version = "1.28", features = ["full"] }
+log = "0.4.22"

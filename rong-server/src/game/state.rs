@@ -3,6 +3,7 @@ use super::player::player_manager::PlayerManager;
 use super::player::Player;
 use rong_shared::error::{GameError, Result};
 use rong_shared::model::{GameState, PlayerId, PositionPacket, ScorePacket};
+use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
 pub struct State {
@@ -41,6 +42,10 @@ impl State {
                         player.set_position(0.5, 0.5); // Set to center of the screen
                     }
 
+                    println!(
+                        "New match started with {} players",
+                        self.players.get_player_count()
+                    );
                     Ok(())
                 } else {
                     Err(GameError::Io(
@@ -61,6 +66,7 @@ impl State {
 
         match self.state {
             GameState::GameStarted => {
+                println!("Game started");
                 self.game_duration += now.duration_since(self.last_update);
                 self.update_player_positions(dt).await?;
                 self.update_ball_position();
@@ -73,8 +79,7 @@ impl State {
             GameState::WaitingForPlayers => {
                 // Check if we can start the game
                 if self.players.get_player_count() == 2 {
-                    self.state = GameState::GameStarted;
-                    self.ball.reset(rand::random::<u8>() % 2 + 1);
+                    self.start_new_match()?;
                 }
             }
         }
@@ -120,6 +125,10 @@ impl State {
     }
 
     pub async fn get_positions(&self) -> Result<PositionPacket> {
+        if self.state != GameState::GameStarted {
+            return Err(GameError::Io("Game has not started yet".to_string()));
+        }
+
         let player_positions = self.players.get_positions().await;
         let ball_position = self.ball.get_position();
 
@@ -159,6 +168,10 @@ impl State {
             self.state = GameState::GameStarted;
             self.game_duration = Duration::from_secs(0);
             self.ball.reset(rand::random::<u8>() % 2 + 1);
+            println!(
+                "Game started with {} players",
+                self.players.get_player_count()
+            );
             Ok(())
         } else {
             Err(GameError::Io("Game already started".to_string()))
@@ -192,5 +205,18 @@ impl State {
         for player in self.players.get_players_mut().values_mut() {
             player.set_position(0.5, 0.5); // Set to center of the screen
         }
+    }
+
+    pub async fn add_player(&mut self, id: PlayerId, addr: SocketAddr) -> Result<()> {
+        self.players
+            .add_player(id, addr)
+            .await
+            .map_err(|e| GameError::Io(e.to_string()))?;
+        println!(
+            "Player {:?} added. Total players: {}",
+            id,
+            self.players.get_player_count()
+        );
+        Ok(())
     }
 }

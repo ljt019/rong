@@ -21,7 +21,7 @@ impl Player {
     pub fn new(id: model::PlayerId, addr: SocketAddr) -> Self {
         Self {
             id,
-            position: (0.0, 0.0),
+            position: (0.5, 0.5), // Start at center
             velocity: 0.0,
             addr,
         }
@@ -32,9 +32,9 @@ impl Player {
     }
 
     pub fn update_position(&mut self, dt: f32) {
-        let (x, _) = self.position;
-        let new_x = x + self.velocity * dt;
-        self.position.0 = new_x.clamp(PLAYER_WIDTH / 2.0, 1.0 - PLAYER_WIDTH / 2.0);
+        let (_, y) = self.position;
+        let new_y = y + self.velocity * dt;
+        self.position.1 = new_y.clamp(PLAYER_HEIGHT / 2.0, 1.0 - PLAYER_HEIGHT / 2.0);
 
         // Decelerate
         if self.velocity.abs() > 0.0 {
@@ -48,7 +48,8 @@ impl Player {
     }
 
     pub fn set_position(&mut self, x: f32, y: f32) {
-        self.position = (x, y);
+        self.position.0 = x.clamp(PLAYER_WIDTH / 2.0, 1.0 - PLAYER_WIDTH / 2.0);
+        self.position.1 = y.clamp(PLAYER_HEIGHT / 2.0, 1.0 - PLAYER_HEIGHT / 2.0);
     }
 
     pub fn get_position(&self) -> model::Position {
@@ -82,11 +83,9 @@ mod tests {
     fn test_player_movement() {
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
         let mut player = Player::new(PlayerId::Player1, addr);
-
         let initial_position = player.get_position();
         player.move_up();
         player.update_position(0.1);
-
         let new_position = player.get_position();
         assert!(
             new_position.1 > initial_position.1,
@@ -102,13 +101,13 @@ mod tests {
         // Try to move player out of bounds
         player.set_position(0.0, -0.1);
         assert!(
-            player.get_position().1 >= 0.0,
+            player.get_position().1 >= PLAYER_HEIGHT / 2.0,
             "Player should not move below the bottom of the screen"
         );
 
         player.set_position(0.0, 1.1);
         assert!(
-            player.get_position().1 <= 1.0,
+            player.get_position().1 <= 1.0 - PLAYER_HEIGHT / 2.0,
             "Player should not move above the top of the screen"
         );
     }

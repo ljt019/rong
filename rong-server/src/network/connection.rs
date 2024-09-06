@@ -3,7 +3,7 @@ use rong_shared::model::{ClientMessage, NetworkPacket, ServerMessage};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::net::UdpSocket;
 use tokio::sync::{mpsc, Mutex};
 
@@ -50,6 +50,8 @@ pub struct ConnectionManager {
     socket: Arc<UdpSocket>,
     clients: HashMap<SocketAddr, ClientInfo>,
     packet_sender: mpsc::Sender<(NetworkPacket<ClientMessage>, SocketAddr)>,
+    message_monitor: Option<Arc<Mutex<mpsc::Sender<(NetworkPacket<ServerMessage>, SocketAddr)>>>>,
+    sequence: u32,
 }
 
 #[derive(Clone)]
@@ -66,6 +68,8 @@ impl ConnectionManager {
             socket,
             clients: HashMap::new(),
             packet_sender,
+            message_monitor: None,
+            sequence: 0,
         })
     }
 
@@ -87,29 +91,65 @@ impl ConnectionManager {
     }
 
     pub async fn broadcast(
-        &self,
+        &mut self,
         packet: &NetworkPacket<ServerMessage>,
     ) -> Result<(), std::io::Error> {
         let serialized = bincode::serialize(packet)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
         for &addr in self.clients.keys() {
-            self.socket.send_to(&serialized, addr).await?;
+            if let Err(e) = self.socket.send_to(&serialized, addr).await {
+                eprintln!("Failed to broadcast to client: {}", e);
+            } else {
+                self.sequence += 1;
+            }
+
+            if let Some(monitor) = &self.message_monitor {
+                if let Err(e) = monitor.lock().await.send((packet.clone(), addr)).await {
+                    eprintln!("Failed to send to message monitor: {}", e);
+                }
+            }
         }
         Ok(())
     }
 
     pub async fn send_to(
-        &self,
+        &mut self,
         packet: &NetworkPacket<ServerMessage>,
         addr: SocketAddr,
     ) -> Result<(), std::io::Error> {
         let serialized = bincode::serialize(packet)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
-        self.socket.send_to(&serialized, addr).await?;
+        if let Err(e) = self.socket.send_to(&serialized, addr).await {
+            eprintln!("Failed to broadcast to client: {}", e);
+        } else {
+            self.sequence += 1;
+        }
+
+        if let Some(monitor) = &self.message_monitor {
+            if let Err(e) = monitor.lock().await.send((packet.clone(), addr)).await {
+                eprintln!("Failed to send to message monitor: {}", e);
+            }
+        }
 
         Ok(())
+    }
+
+    pub fn get_sequence(&mut self) -> u32 {
+        self.sequence += 1;
+        return self.sequence;
+    }
+
+    pub fn get_timestamp(&self) -> u64 {
+        // Get the current time
+        let now = SystemTime::now();
+
+        // Calculate the duration since the Unix epoch
+        let duration_since_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+
+        // Convert the duration to milliseconds and return it as u64
+        duration_since_epoch.as_millis() as u64
     }
 
     pub async fn run(&mut self) -> Result<(), std::io::Error> {
@@ -128,6 +168,13 @@ impl ConnectionManager {
             }
         }
     }
+
+    pub fn set_message_monitor(
+        &mut self,
+        monitor: Arc<Mutex<mpsc::Sender<(NetworkPacket<ServerMessage>, SocketAddr)>>>,
+    ) {
+        self.message_monitor = Some(monitor);
+    }
 }
 
 impl Clone for ConnectionManager {
@@ -136,6 +183,8 @@ impl Clone for ConnectionManager {
             socket: self.socket.clone(),
             clients: self.clients.clone(),
             packet_sender: self.packet_sender.clone(),
+            message_monitor: self.message_monitor.clone(),
+            sequence: self.sequence,
         }
     }
 }
