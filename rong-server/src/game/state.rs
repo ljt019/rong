@@ -66,7 +66,6 @@ impl State {
 
         match self.state {
             GameState::GameStarted => {
-                println!("Game started");
                 self.game_duration += now.duration_since(self.last_update);
                 self.update_player_positions(dt).await?;
                 self.update_ball_position();

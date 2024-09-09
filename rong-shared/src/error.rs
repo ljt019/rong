@@ -23,6 +23,8 @@ pub enum ServerError {
     PlayerNotFound,
     #[error("Game full")]
     GameFull,
+    #[error("Game State Update Error")]
+    GameStateUpdateError,
 }
 
 #[derive(Error, Debug, Serialize, Deserialize, Clone)]

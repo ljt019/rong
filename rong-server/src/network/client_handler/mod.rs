@@ -1,3 +1,5 @@
+mod connection;
+
 use bincode;
 use rong_shared::model::{ClientMessage, NetworkPacket, ServerMessage};
 use std::collections::HashMap;
@@ -7,68 +9,29 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::net::UdpSocket;
 use tokio::sync::{mpsc, Mutex};
 
-pub struct Connection {
-    socket: Arc<Mutex<UdpSocket>>,
-}
-
-impl Connection {
-    pub async fn new(address: &str) -> Result<Self, std::io::Error> {
-        let socket = UdpSocket::bind(address).await?;
-        Ok(Connection {
-            socket: Arc::new(Mutex::new(socket)),
-        })
-    }
-
-    pub async fn receive_packet(
-        &self,
-    ) -> Result<(NetworkPacket<ClientMessage>, std::net::SocketAddr), std::io::Error> {
-        let mut buf = [0; 1024];
-        let socket = self.socket.lock().await;
-        let (size, addr) = socket.recv_from(&mut buf).await?;
-
-        let packet: NetworkPacket<ClientMessage> = bincode::deserialize(&buf[..size])
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-
-        Ok((packet, addr))
-    }
-
-    pub async fn send_packet(
-        &self,
-        packet: NetworkPacket<ServerMessage>,
-        target: std::net::SocketAddr,
-    ) -> Result<(), std::io::Error> {
-        let buf = bincode::serialize(&packet)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-
-        let socket = self.socket.lock().await;
-        socket.send_to(&buf, target).await?;
-        Ok(())
-    }
-}
-
-pub struct ConnectionManager {
+pub struct ClientHandler {
     socket: Arc<UdpSocket>,
     clients: HashMap<SocketAddr, ClientInfo>,
     packet_sender: mpsc::Sender<(NetworkPacket<ClientMessage>, SocketAddr)>,
-    message_monitor: Option<Arc<Mutex<mpsc::Sender<(NetworkPacket<ServerMessage>, SocketAddr)>>>>,
     sequence: u32,
 }
 
 #[derive(Clone)]
-struct ClientInfo {
+pub struct ClientInfo {
     last_seen: Instant,
 }
 
-impl ConnectionManager {
+impl ClientHandler {
     pub async fn new(
-        socket: Arc<UdpSocket>,
+        server_addr: SocketAddr,
         packet_sender: mpsc::Sender<(NetworkPacket<ClientMessage>, SocketAddr)>,
     ) -> Result<Self, std::io::Error> {
-        Ok(ConnectionManager {
+        let socket = Arc::new(UdpSocket::bind(server_addr).await?);
+
+        Ok(ClientHandler {
             socket,
             clients: HashMap::new(),
             packet_sender,
-            message_monitor: None,
             sequence: 0,
         })
     }
@@ -103,12 +66,6 @@ impl ConnectionManager {
             } else {
                 self.sequence += 1;
             }
-
-            if let Some(monitor) = &self.message_monitor {
-                if let Err(e) = monitor.lock().await.send((packet.clone(), addr)).await {
-                    eprintln!("Failed to send to message monitor: {}", e);
-                }
-            }
         }
         Ok(())
     }
@@ -126,14 +83,32 @@ impl ConnectionManager {
         } else {
             self.sequence += 1;
         }
+        Ok(())
+    }
 
-        if let Some(monitor) = &self.message_monitor {
-            if let Err(e) = monitor.lock().await.send((packet.clone(), addr)).await {
-                eprintln!("Failed to send to message monitor: {}", e);
+    pub async fn receive(&mut self) -> Option<(ClientMessage, std::net::SocketAddr)> {
+        let mut buf = [0; 1024];
+        match self.socket.recv_from(&mut buf).await {
+            Ok((size, addr)) => {
+                self.update_client(addr);
+                match bincode::deserialize::<NetworkPacket<ClientMessage>>(&buf[..size]) {
+                    Ok(packet) => {
+                        if let Err(e) = self.packet_sender.send((packet.clone(), addr)).await {
+                            eprintln!("Failed to send packet to handler: {}", e);
+                        }
+                        Some((packet.get_payload().clone(), addr))
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to deserialize packet: {}", e);
+                        None
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to receive from socket: {}", e);
+                None
             }
         }
-
-        Ok(())
     }
 
     pub fn get_sequence(&mut self) -> u32 {
@@ -168,22 +143,14 @@ impl ConnectionManager {
             }
         }
     }
-
-    pub fn set_message_monitor(
-        &mut self,
-        monitor: Arc<Mutex<mpsc::Sender<(NetworkPacket<ServerMessage>, SocketAddr)>>>,
-    ) {
-        self.message_monitor = Some(monitor);
-    }
 }
 
-impl Clone for ConnectionManager {
+impl Clone for ClientHandler {
     fn clone(&self) -> Self {
-        ConnectionManager {
+        ClientHandler {
             socket: self.socket.clone(),
             clients: self.clients.clone(),
             packet_sender: self.packet_sender.clone(),
-            message_monitor: self.message_monitor.clone(),
             sequence: self.sequence,
         }
     }

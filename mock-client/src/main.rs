@@ -53,11 +53,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut buffer = [0; 1024];
         tokio::select! {
             // Handle incoming messages
-            Ok((amt, _)) = socket.recv_from(&mut buffer) => {
+            Ok((amt, addr)) = socket.recv_from(&mut buffer) => {
                 let buf = &mut [0; 1024][..amt];
                 match bincode::deserialize::<NetworkPacket<ServerMessage>>(buf) {
                     Ok(packet) => {
-                        info!("Received: {:?}", packet.get_payload());
+                        info!("*Client* Received packet from {}: {:?}", addr, packet);
                         handle_server_message(packet.get_payload(), &mut game_state, &mut game_data);
                     },
                     Err(e) => error!("Failed to deserialize packet: {:?}", e),
@@ -98,7 +98,6 @@ fn handle_server_message(
     game_state: &mut GameState,
     game_data: &mut GameData,
 ) {
-    info!("*** Received: {:?}", msg);
     match msg {
         ServerMessage::PlayerJoined(id) => {
             game_data.player.id = *id;
@@ -112,7 +111,7 @@ fn handle_server_message(
                 info!("&*****************&");
             }
 
-            *game_state = *new_state;
+            *game_state = new_state.clone();
             info!("Game state changed to {:?}", new_state);
         }
         ServerMessage::PositionUpdate(positions) => {

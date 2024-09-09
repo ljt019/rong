@@ -843,6 +843,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rong-main-package"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "rong-server",
+ "rong-shared",
+ "tokio",
+]
+
+[[package]]
 name = "rong-mock-client"
 version = "0.1.0"
 dependencies = [

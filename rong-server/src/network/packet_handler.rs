@@ -7,13 +7,15 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use crate::game::GameStateManager;
+
 pub struct PacketHandler {
-    game_state: Arc<Mutex<State>>,
+    game_state_manager: Arc<GameStateManager>,
 }
 
 impl PacketHandler {
-    pub fn new(game_state: Arc<Mutex<State>>) -> Self {
-        PacketHandler { game_state }
+    pub fn new(game_state_manager: Arc<GameStateManager>) -> Self {
+        PacketHandler { game_state_manager }
     }
 
     pub async fn handle_packet(
