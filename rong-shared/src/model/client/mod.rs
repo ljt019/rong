@@ -6,12 +6,14 @@ use super::shared::PlayerId;
 
 pub type ClientPacket = NetworkPacket<ClientMessage>;
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ClientMessage {
     JoinQueue,
     LeaveQueue,
     MovementInput(MovementData),
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MovementData {
     player_id: PlayerId,
     movement: Movement,

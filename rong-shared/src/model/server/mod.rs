@@ -1,12 +1,11 @@
-use super::shared::NetworkPacket;
-use super::shared::PositionData;
-use super::shared::ScoreData;
-use super::GameStatus;
-use super::PlayerId;
+use super::shared::{GameUpdateData, NetworkPacket, PlayerId};
 use crate::error::ServerError;
+
+use serde::{Deserialize, Serialize};
 
 pub type ServerPacket = NetworkPacket<ServerMessage>;
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ServerMessage {
     GameFound(PlayerId),
     GameUpdate(GameUpdateData),
@@ -14,27 +13,8 @@ pub enum ServerMessage {
     Error(ServerError),
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Ack {
     AddedToQueue,
     RemovedFromQueue,
-}
-
-pub struct GameUpdateData {
-    positions: PositionData,
-    scores: ScoreData,
-    game_status: GameStatus,
-}
-
-impl GameUpdateData {
-    pub fn new(
-        position_data: PositionData,
-        score_data: ScoreData,
-        game_status: GameStatus,
-    ) -> Self {
-        GameUpdateData {
-            positions: position_data,
-            scores: score_data,
-            game_status,
-        }
-    }
 }

@@ -1,10 +1,21 @@
-use crate::model::PlayerId;
-use crate::model::Score;
+use super::{PlayerId, Score};
 
+use serde::{Deserialize, Serialize};
 use std::ops::{Index, IndexMut};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ScoreData {
     player1_score: Score,
     player2_score: Score,
+}
+
+impl ScoreData {
+    pub fn new(player1_score: Score, player2_score: Score) -> Self {
+        Self {
+            player1_score,
+            player2_score,
+        }
+    }
 }
 
 impl Index<PlayerId> for ScoreData {

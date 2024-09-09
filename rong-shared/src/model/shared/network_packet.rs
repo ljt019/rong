@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /*  Network packet wrapper for all messages */
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NetworkPacket<T> {
     sequence: u32,
     timestamp: u64,

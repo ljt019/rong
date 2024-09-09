@@ -1,8 +1,9 @@
-use crate::model::EntityId;
-use crate::model::PlayerId;
-use crate::model::Position;
+use super::{EntityId, PlayerId, Position};
 
+use serde::{Deserialize, Serialize};
 use std::ops::{Index, IndexMut};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PositionData {
     player1_position: Position,
     player2_position: Position,
